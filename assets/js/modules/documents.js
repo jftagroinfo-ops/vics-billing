@@ -31,15 +31,17 @@ function syncToGoogleDrive(documentNo, documentType, buyerName) {
     const year = new Date().getFullYear();
     const safeBuyerName = (buyerName || 'Unknown').replace(/[\/\\]/g, '-');
     const safeDocNo = (documentNo || 'Draft').replace(/[\/\\]/g, '-');
-    const folderPath = `JFT Drive / ${year} / Buyers / ${safeBuyerName}`;
     const safeFilename = `${documentType.replace(/ /g, '_')}_${safeDocNo}.pdf`;
 
+    // NOTE: Full GDrive PDF push requires the Google Drive API OAuth flow (not yet implemented).
+    // This currently logs the intended path for audit trail only. 
     if (typeof Enterprise !== 'undefined') {
-        Enterprise.notify(`☁️ Archiving to Google Drive: ${folderPath}`, "info");
-        setTimeout(() => {
-            Enterprise.notify(`✅ ${safeFilename} successfully saved to Google Cloud!`, "success");
-            Enterprise.logAction(`Auto-Synced PDF to GDrive: ${safeFilename}`);
-        }, 2500);
+        const folderPath = `JFT Drive / ${year} / Buyers / ${safeBuyerName}`;
+        Enterprise.logAction(`[GDrive Queued] ${safeFilename} → ${folderPath}`);
+        // Only notify if gdriveSync is explicitly enabled and API is connected
+        if (db.meta.gdriveApiConnected) {
+            Enterprise.notify(`☁️ Archiving to Google Drive: ${folderPath}`, "info");
+        }
     }
 }
 

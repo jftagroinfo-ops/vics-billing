@@ -245,8 +245,8 @@ a.nav-item:hover { text-decoration: none; }
     overflow-y: auto; 
     overflow-x: hidden;
     position: relative;
-    scroll-behavior: auto !important; /* Fix for instant scroll reset */
-    animation: staggerFadeIn 0.3s ease-out; 
+    scroll-behavior: auto !important;
+    animation: staggerFadeIn 0.2s ease-out; /* Faster, opacity-only — no transform stacking context */
 }
 .main-tab.active { display: block; }
 
@@ -318,11 +318,14 @@ body.dark-mode .skeleton {
 /* Fixed Sub-Tab Navigation Support (REFINED) */
 .sticky-sub-nav {
     position: sticky !important;
-    top: -24px !important; 
-    z-index: 1000 !important; /* Always below header (1010) but above content */
+    top: 0 !important; 
+    /* top was -24px which placed the nav in an invisible zone above the scroll area.
+       Its backdrop-filter was absorbing pointer events in that zone and on scroll.
+       Changed to 0 so it sticks to the top of the visible scroll area correctly. */
+    z-index: 100 !important; /* Reduced from 1000 — only needs to be above table cells (z-index:10) */
     background: var(--bg);
     padding: 12px 24px !important;
-    margin: 0px -24px 25px -24px !important; /* Fixed: only horizontal negative margin */
+    margin: -24px -24px 25px -24px !important; /* Pull flush to tab edges */
     border-bottom: 2px solid var(--border);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
@@ -330,12 +333,17 @@ body.dark-mode .skeleton {
     gap: 12px;
     align-items: center;
     overflow-x: auto;
-    scrollbar-width: none; /* Hide default scrollbar */
-    -ms-overflow-style: none; /* Hide for IE/Edge */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
 }
 .sticky-sub-nav::-webkit-scrollbar { display: none; } /* Hide for Chrome/Safari */
 
-body.dark-mode .sticky-sub-nav { background: rgba(11, 17, 32, 0.9); }
+body.dark-mode .sticky-sub-nav { background: rgba(11, 17, 32, 0.95); }
+
+/* Ensure focused inputs scroll into view BELOW the sticky sub-nav (height ~52px) */
+input:focus, select:focus, textarea:focus {
+    scroll-margin-top: 70px;
+}
 
 
 
@@ -365,7 +373,7 @@ table th, .modern-table th {
     border-bottom: 1px solid var(--border) !important;
     position: sticky !important;
     top: 0 !important;
-    z-index: 10 !important;
+    z-index: 5 !important; /* Reduced from 10 — below sticky-sub-nav (100) and above td (auto) */
     backdrop-filter: blur(8px) !important;
 }
 
@@ -422,11 +430,16 @@ table tbody tr:nth-child(even):hover td, .modern-table tbody tr:nth-child(even):
     margin-bottom: 24px; 
     transition: box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
     position: relative;
-    overflow: hidden;
+    /* overflow: hidden REMOVED — it was clipping input hit-areas, focus rings, select
+       dropdowns, and sticky table headers. Use overflow:hidden only on specific inner
+       containers (e.g. iframe wrappers) via inline style where actually needed. */
+    overflow: visible;
 }
 .card:hover { 
     box-shadow: var(--shadow-lg); 
-    transform: translateY(-2px); 
+    /* transform: translateY(-2px) REMOVED — the CSS transform created a new stacking
+       context on every hover, putting the card above fixed/sticky overlays and causing
+       pointer events to mis-route away from inputs. Shadow elevation conveys lift instead. */
     border-color: rgba(37, 99, 235, 0.1); 
 }
 
@@ -444,18 +457,22 @@ input, select, textarea {
     border-radius: 12px; 
     font-size: 0.95rem; 
     margin-top: 6px; 
-    margin-bottom: 18px; 
+    margin-bottom: 12px; /* Reduced from 18px — less overflow beyond card boundary */
     background: var(--bg); 
     color: var(--text); 
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); 
     font-family: inherit;
     box-shadow: inset 0 2px 4px rgba(0,0,0,0.01);
+    position: relative; /* Establish own stacking context so focus ring is not clipped */
+    z-index: 1;          /* Above table cells (auto) but below sticky headers (5) */
+    pointer-events: auto; /* Explicit: always receive clicks regardless of parent context */
 }
 input:focus, select:focus, textarea:focus { 
     outline: none; 
     border-color: var(--primary); 
-    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1); 
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12); 
     background: var(--surface);
+    z-index: 2; /* Rise above sibling inputs to ensure focus ring is fully visible */
 }
 /* AUTOFILL DARK MODE CORRECTION */
 input:-webkit-autofill,
@@ -516,12 +533,12 @@ button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow
 /* --- TABLES --- */
 table { width: 100%; border-collapse: separate; border-spacing: 0; margin-top: 10px; font-size: 0.95rem; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; box-shadow: var(--shadow-sm); }
 th, td { border-bottom: 1px solid var(--border); padding: 14px 18px; text-align: left; }
-th { background: rgba(0,0,0,0.02); color: var(--text-muted); font-weight: 700; text-transform: uppercase; font-size: 0.8rem; position: sticky; top: 0; z-index: 10; letter-spacing: 0.05em; cursor: default; }
+th { background: rgba(0,0,0,0.02); color: var(--text-muted); font-weight: 700; text-transform: uppercase; font-size: 0.8rem; position: sticky; top: 0; z-index: 5; letter-spacing: 0.05em; cursor: default; }
 tr:hover td { background: rgba(37, 99, 235, 0.02); }
 tr:last-child td { border-bottom: none; }
 
 /* --- UTILITIES & BADGES --- */
-.hidden { display: none !important; }
+.hidden { display: none !important; pointer-events: none !important; }
 .visible { display: block !important; }
 
 .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; display: inline-block; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -711,7 +728,16 @@ body.dark-mode .status-Shipped, body.dark-mode .status-Pending { background: rgb
    UI PRO MAX — GLOBAL ANIMATION SYSTEM
    ============================================ */
 
-@keyframes staggerFadeIn { from { opacity: 0; transform: translateY(20px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+/* Tab fade-in: opacity only — transform was creating a stacking context during the
+   0.3s animation that blocked pointer events on inputs during the transition. */
+@keyframes staggerFadeIn { 
+    from { opacity: 0; } 
+    to   { opacity: 1; } 
+}
+@keyframes staggerFadeInSubtle {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
 @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 0 currentColor; } 50% { opacity: 0.8; transform: scale(1.05); box-shadow: 0 0 10px 2px currentColor; } }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 @keyframes glowPulse { 0%, 100% { box-shadow: none; } 50% { box-shadow: 0 0 18px rgba(59, 130, 246, 0.5); } }

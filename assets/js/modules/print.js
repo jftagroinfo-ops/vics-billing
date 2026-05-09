@@ -11,7 +11,10 @@ function initPrintSystem() {
 }
 initPrintSystem();
 
-// escapeHTML is defined globally in ui.js — no local copy needed.
+window.escapeHTML = window.escapeHTML || function(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+};
 
 window.printCurrentPage = 1;
 let _lastHistoryFingerprint = "";
@@ -19,8 +22,6 @@ let _lastHistoryFingerprint = "";
 function startPrintWatchdog() {
     setInterval(() => {
         if (typeof db === 'undefined') return;
-        // PERF: Skip re-render when this tab is not visible
-        if (document.getElementById('print')?.style.display === 'none') return;
         if (!db.docs) db.docs = [];
         
         const currentFingerprint = db.docs.map(d => d.id).join('|');
@@ -28,7 +29,7 @@ function startPrintWatchdog() {
             _lastHistoryFingerprint = currentFingerprint;
             renderPrintQueue();
         }
-    }, 5000); // Slowed from 1500ms → 5000ms.
+    }, 1500);
 }
 
 function initPrintFilters() {
@@ -112,7 +113,6 @@ window.renderPrintQueue = function() {
 
 window.printFromQueue = function(docId) {
     if (typeof editDoc === 'function') {
-        
         editDoc(docId);
         
         if (typeof showTab === 'function') {
@@ -125,15 +125,15 @@ window.printFromQueue = function(docId) {
             } else {
                 window.print();
             }
-            
-            // Release the security lock so other employees can still edit the document
+            // Release the security lock so other employees can still edit
             if (typeof closeEditor === 'function') {
                 setTimeout(closeEditor, 1500); 
             }
-
         }, 500);
 
-        if(typeof Enterprise !== 'undefined') Enterprise.notify("⚠️ Error: Document editor not loaded.", "danger");
+    } else {
+        // editDoc is not available — document editor not loaded yet
+        if (typeof Enterprise !== 'undefined') Enterprise.notify("⚠️ Please open the Documents tab first before printing from history.", "warning");
     }
 };
 
