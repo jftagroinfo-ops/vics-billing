@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="./manifest.json">
+
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://cdn.jsdelivr.net https://unpkg.com https://www.gstatic.com https://cdnjs.cloudflare.com https://apis.google.com https://fonts.googleapis.com https://fonts.gstatic.com https://nominatim.openstreetmap.org https://*.tile.openstreetmap.org https://open.er-api.com https://api.exchangerate-api.com https://firestore.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://accounts.google.com https://content.googleapis.com https://generativelanguage.googleapis.com https://api.openai.com; img-src 'self' data: blob: https:; frame-src 'self' https://accounts.google.com https://content.googleapis.com https://*.firebaseapp.com;">
+
+    <title>SMA ERP | Secure Enterprise System</title>
+
+    <script>
+        // CRITICAL GLOBAL FIX: Guarantee 'db' exists before modules load to prevent ReferenceError crashes
+        window.db = window.db || {};
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="https://apis.google.com/js/api.js" async defer></script>
+
+    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+    <script>
+        // Configure PDF.js worker
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+    </script>
+
+    <link rel="stylesheet" href="assets/css/style.css">
+    <style>
+        .hidden {
+            display: none !important;
+        }
+        /* Top bar utility icons */
+        .utility-btn {
+            font-size: 1.2rem;
+            padding: 4px 8px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            transition: transform 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text);
+        }
+        .utility-btn:hover {
+            transform: scale(1.1);
+            color: var(--primary);
+        }
+        /* Overlay Modals */
+        .personal-modal-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            z-index: 10050; display: flex; align-items: center; justify-content: center;
+        }
+        
+        .note-list-item {
+            padding: 15px; border-bottom: 1px solid var(--border); cursor: pointer; transition: 0.2s;
+        }
+        .note-list-item:hover { background: rgba(59, 130, 246, 0.05); }
+        .note-list-item.active { background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--primary); }
+        
+        .clock-card {
+            background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 15px;
+            text-align: center; position: relative; box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        .clock-time { font-size: 2rem; font-weight: bold; color: var(--primary); font-variant-numeric: tabular-nums; }
+        .clock-date { font-size: 0.85rem; color: var(--text-muted); margin-top: 5px; }
+
+        /* Smooth Calendar Transitions */
+        #calendar-grid div { transition: all 0.2s; }
+    </style>
+</head>
+
+<body class="dark-mode auth-locked">
+
+    <div id="login-overlay"
+        style="position:fixed; top:0; left:0; width:100%; height:100%; background:var(--bg); z-index:9999; display:flex; align-items:center; justify-content:center;">
+        <div class="card" style="width: 400px; text-align:center; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);">
+            <div style="display:flex; justify-content:center; margin-bottom:15px;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+            </div>
+            <h2 style="font-weight:800; letter-spacing:-0.5px;">SMA ERP Server</h2>
+            <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 20px;">Please enter your credentials
+                to access the ERP.</p>
+            <form onsubmit="performLogin(event)" autocomplete="off">
+                <input type="text" id="login-user" placeholder="Username (e.g., admin)" required
+                    style="margin-bottom: 15px; width: 100%;" autocomplete="off" 
+                    autocorrect="off" autocapitalize="none">
+                <input type="password" id="login-pass" placeholder="Password" required
+                    style="margin-bottom: 20px; width: 100%;" autocomplete="new-password">
+                <button type="submit" style="width:100%;">Secure Login</button>
+            </form>
+            <div id="login-error" style="color: var(--danger); font-size: 0.85rem; margin-top: 15px; display: none;">
+                Invalid Username or Password!</div>
+        </div>
+    </div>
+
+    <!-- Enterprise "Idle-Lock" Screen (Offline Capable) -->
+    <div id="session-lock-overlay" class="hidden"
+        style="position:fixed; inset:0; background:rgba(15, 23, 42, 0.4); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px); z-index:10000; display:none; align-items:center; justify-content:center;">
+        <div class="card" style="width:380px; text-align:center; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);">
+            <div style="font-size:3rem; margin-bottom:10px;">🔒</div>
+            <h3 style="color:var(--text); margin-bottom:5px;">Workspace Locked</h3>
+            <p style="color:var(--text-muted); font-size: 0.9rem; margin-bottom: 25px;">Enter your Secure PIN or Password to resume.</p>
+            <form onsubmit="if(typeof unlockSession === 'function') unlockSession(event)">
+                <div style="display:flex; justify-content:center; gap:10px; margin-bottom: 20px;">
+                    <input type="password" id="unlock-pass" placeholder="PIN / Password" required style="width: 100%; text-align:center; font-size: 1.5rem; letter-spacing: 5px; padding: 15px; border-radius: 12px; background: rgba(0,0,0,0.2) !important; color: white !important; border: 1px solid rgba(255,255,255,0.2) !important; outline: none; transition: border 0.3s;" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='rgba(255,255,255,0.2)'">
+                </div>
+                <button type="submit" style="width:100%; border-radius: 12px; font-weight: bold; background: var(--primary);">Unlock Workspace</button>
+            </form>
+            <div style="margin-top: 20px; font-size:0.75rem;">
+                <a href="#" onclick="if(typeof performLogout === 'function') performLogout()" style="color: var(--danger); text-decoration:none; font-weight:bold;">Not you? Sign Out</a>
+            </div>
+        </div>
+    </div>
+
+    <div id="notepad-overlay" class="hidden personal-modal-overlay">
+        <div class="card" style="width: 95vw; max-width: 1000px; height: 85vh; max-height: 800px; display:flex; flex-direction:column; padding:0; overflow:hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--border); padding:15px 20px; background: var(--surface);">
+                <h3 style="margin:0; display:flex; align-items:center; gap:10px;">📝 Enterprise Notepad</h3>
+                <button type="button" class="danger" style="border-radius: 50%; width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center;" onclick="document.getElementById('notepad-overlay').classList.add('hidden')" title="Close Notepad">✕</button>
+            </div>
+            <div style="display:flex; flex-grow:1; height: calc(100% - 62px); flex-wrap: wrap;">
+                <div style="width: 100%; max-width: 300px; flex: 1 0 300px; border-right: 1px solid var(--border); background: var(--bg); display:flex; flex-direction:column;">
+                    <div style="padding: 15px; border-bottom: 1px solid var(--border);">
+                        <button style="width: 100%; background: var(--primary);" onclick="createNewNote()">+ Create New Note</button>
+                    </div>
+                    <div id="note-list" style="flex-grow:1; overflow-y:auto; background: var(--surface);">
+                        </div>
+                </div>
+                <div style="flex-grow:1; display:flex; flex-direction:column; background: var(--bg);">
+                    <div style="padding: 15px 20px; border-bottom: 1px solid var(--border); display:flex; gap: 10px; align-items:center; background: var(--surface);">
+                        <input type="text" id="note-title" placeholder="Enter Note Heading..." style="flex-grow:1; font-size:1.3rem; font-weight:bold; border:none; outline:none; background:transparent; color: var(--text);">
+                        <button class="secondary" id="btn-pin-note" onclick="togglePinNote()" title="Mark as Important (Pin)" style="padding: 6px 12px; font-size: 1rem;">📌</button>
+                        <button class="danger" onclick="deleteCurrentNote()" title="Delete this Note" style="padding: 6px 12px; background: transparent; color: var(--danger); border: 1px solid var(--danger);">🗑️</button>
+                        <button onclick="saveCurrentNote()" style="padding: 6px 15px; background: var(--success);">💾 Save</button>
+                    </div>
+                    <div style="padding: 5px 20px; font-size: 0.8rem; color: var(--text-muted); border-bottom: 1px solid var(--border); background: var(--surface);">
+                        Last Updated: <span id="note-date-display">Never</span>
+                    </div>
+                    <textarea id="note-body" style="flex-grow:1; border:none; resize:none; padding:20px; font-size:1.05rem; line-height: 1.6; outline:none; background:transparent; color:var(--text);" placeholder="Start typing your business notes, drafts, or ideas here..."></textarea>
+                    <input type="hidden" id="note-active-id">
+                    <input type="hidden" id="note-is-pinned" value="false">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="calendar-overlay" class="hidden personal-modal-overlay">
+        <div class="card" style="width: 95vw; max-width: 1200px; height: 85vh; max-height: 850px; display:flex; flex-direction:column; padding:0; overflow:hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--border); padding:15px 20px; background: var(--surface);">
+                <h3 style="margin:0; display:flex; align-items:center; gap:10px;">📅 Corporate Calendar & Events</h3>
+                <button type="button" class="danger" style="border-radius: 50%; width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center;" onclick="document.getElementById('calendar-overlay').classList.add('hidden')" title="Close Calendar">✕</button>
+            </div>
+            <div style="display:flex; flex-grow:1; height: calc(100% - 62px); flex-wrap: wrap;">
+                <div style="width: 100%; max-width: 400px; flex: 1 0 350px; border-right: 1px solid var(--border); padding: 20px; background: var(--surface); overflow-y:auto; display:flex; flex-direction:column; gap:20px;">
+                    
+                    <div id="visual-calendar-container" style="background: var(--bg); padding: 15px; border-radius: 8px; border: 1px solid var(--border);">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                            <button type="button" class="secondary" style="padding: 2px 10px;" onclick="if(typeof changeCalendarMonth === 'function') changeCalendarMonth(-1)">◀</button>
+                            <h4 id="calendar-month-year" style="margin:0; color:var(--text);">Month Year</h4>
+                            <button type="button" class="secondary" style="padding: 2px 10px;" onclick="if(typeof changeCalendarMonth === 'function') changeCalendarMonth(1)">▶</button>
+                        </div>
+                        <div style="display:grid; grid-template-columns:repeat(7, 1fr); gap:5px; text-align:center; font-weight:bold; font-size:0.75rem; color:var(--text-muted); margin-bottom:8px;">
+                            <div>Su</div><div>Mo</div><div>Tu</div><div>We</div><div>Th</div><div>Fr</div><div>Sa</div>
+                        </div>
+                        <div id="calendar-grid" style="display:grid; grid-template-columns:repeat(7, 1fr); gap:5px;">
+                            </div>
+                    </div>
+
+                    <div style="background: var(--bg); padding: 15px; border-radius: 8px; border: 1px solid var(--border);">
+                        <h4 style="margin-top:0; color: var(--primary); border-bottom: 1px solid var(--border); padding-bottom: 10px;">+ Schedule Event</h4>
+                        <form onsubmit="saveCalendarEvent(event)">
+                            <label style="font-weight:bold; font-size:0.85rem;">Event Title / Name</label>
+                            <input type="text" id="cal-title" required placeholder="e.g. Audit Meeting" style="width:100%; margin-bottom:15px; padding:8px;">
+                            
+                            <label style="font-weight:bold; font-size:0.85rem;">Date & Time</label>
+                            <input type="datetime-local" id="cal-date" required style="width:100%; margin-bottom:15px; padding:8px;">
+                            
+                            <label style="font-weight:bold; font-size:0.85rem;">Event Type</label>
+                            <select id="cal-type" style="width:100%; margin-bottom:15px; padding:8px;">
+                                <option value="Meeting">🤝 Meeting / Call</option>
+                                <option value="Deadline">⚠️ Important Deadline</option>
+                                <option value="Holiday">🎉 Holiday / Festival</option>
+                                <option value="Task">✅ General Task</option>
+                            </select>
+                            
+                            <label style="font-weight:bold; font-size:0.85rem;">System Alert Reminder</label>
+                            <select id="cal-alert" style="width:100%; margin-bottom:20px; padding:8px;">
+                                <option value="none">No Alert (Silent)</option>
+                                <option value="0">At time of event</option>
+                                <option value="15">15 mins before</option>
+                                <option value="60">1 hour before</option>
+                                <option value="1440">1 day before</option>
+                            </select>
+                            
+                            <button type="submit" style="width:100%; padding: 10px;">💾 Save Event</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div style="flex-grow:1; display:flex; flex-direction:column; background: var(--bg); padding:25px;">
+                    <h4 style="margin-top:0; border-bottom:2px solid var(--border); padding-bottom:10px; color: var(--text);">Agenda & Upcoming Schedule</h4>
+                    <div id="calendar-list-view" style="flex-grow:1; overflow-y:auto; padding-right: 10px;">
+                        </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="clock-overlay" class="hidden personal-modal-overlay">
+        <div class="card" style="width: 95vw; max-width: 1100px; height: 75vh; display:flex; flex-direction:column; padding:0; overflow:hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--border); padding:15px 20px; background: var(--surface);">
+                <h3 style="margin:0; display:flex; align-items:center; gap:10px;">🌍 Global Business Clocks</h3>
+                <div style="display:flex; gap:10px; align-items:center;">
+                    <input type="text" id="clock-search" placeholder="Search Country/City..." style="padding:8px 10px; border-radius:4px; border:1px solid var(--border); width: 180px;" oninput="if(typeof filterClockDropdown === 'function') filterClockDropdown()">
+                    <select id="clock-country-select" style="margin:0; padding:8px 10px; border-radius: 4px; font-weight: bold; background:var(--surface); color:var(--text); border:1px solid var(--border); width: 220px;"></select>
+                    <button class="secondary" onclick="addWorldClock()" style="padding: 8px 15px;">+ Add</button>
+                    <button class="primary" onclick="if(typeof forceSync === 'function') window.forceSync()" style="padding: 8px 15px; margin-left: 10px;">💾 Save Settings</button>
+                    <div style="border-left: 1px solid var(--border); height: 30px; margin: 0 5px;"></div>
+                    <button type="button" class="danger" style="border-radius: 50%; width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; margin:0;" onclick="closeWorldClockModal()" title="Close Clocks">✕</button>
+                </div>
+            </div>
+            <div style="padding:25px; background: var(--bg); flex-grow:1; overflow-y:auto;">
+                <div style="margin-bottom: 15px; color: var(--text-muted); font-size: 0.9rem;">Keep track of international market times (Maximum 10 clocks).</div>
+                <div id="world-clock-container" class="grid-4" style="gap:20px;">
+                    </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="calculator-overlay" class="hidden personal-modal-overlay" tabindex="-1">
+        <div class="card" style="width: 90vw; max-width: 380px; display:flex; flex-direction:column; padding:0; overflow:hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); background: var(--surface);">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--border); padding:15px 20px; background: var(--surface);">
+                <h3 style="margin:0; display:flex; align-items:center; gap:10px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="20" x="4" y="2" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="16" x2="16.01" y1="14" y2="14"/><line x1="16" x2="16.01" y1="10" y2="10"/><line x1="16" x2="16.01" y1="18" y2="18"/><line x1="8" x2="8.01" y1="14" y2="14"/><line x1="8" x2="8.01" y1="10" y2="10"/><line x1="8" x2="8.01" y1="18" y2="18"/><line x1="12" x2="12.01" y1="14" y2="14"/><line x1="12" x2="12.01" y1="10" y2="10"/><line x1="12" x2="12.01" y1="18" y2="18"/></svg>
+                    Calculator
+                </h3>
+                <button type="button" class="danger" style="border-radius: 50%; width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center;" onclick="if(typeof closeCalculatorModal === 'function') closeCalculatorModal()" title="Close">✕</button>
+            </div>
+            <div style="padding:20px; background: var(--bg);">
+                <div style="position:relative; margin-bottom:15px;">
+                    <div id="calc-history" style="position:absolute; top:5px; right:15px; font-size:0.8rem; color:var(--text-muted); height:15px; overflow:hidden;"></div>
+                    <input type="text" id="calc-display" readonly value="0" style="width:100%; font-size:2.2rem; text-align:right; padding:20px 15px 10px 15px; background:var(--surface); color:var(--text); border:1px solid var(--border); border-radius:8px; outline:none; font-family:monospace; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);">
+                </div>
+                <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:8px;">
+                    <button class="secondary" style="padding:15px; font-size:1.2rem; background:#fef2f2; color:#ef4444; border:1px solid #fca5a5; font-weight:bold;" onclick="if(typeof calcInput === 'function') calcInput('C')">C</button>
+                    <button class="secondary" style="padding:15px; font-size:1.2rem; background:var(--surface); font-weight:bold;" onclick="if(typeof calcInput === 'function') calcInput('/')">÷</button>
+                    <button class="secondary" style="padding:15px; font-size:1.2rem; background:var(--surface); font-weight:bold;" onclick="if(typeof calcInput === 'function') calcInput('*')">×</button>
+                    <button class="secondary" style="padding:15px; font-size:1.2rem; background:var(--surface); color:var(--danger); font-weight:bold;" onclick="if(typeof calcInput === 'function') calcInput('DEL')">⌫</button>
+                    
+                    <button class="secondary" style="padding:15px; font-size:1.3rem; background: var(--surface); color:#334155; font-weight:bold;" onclick="if(typeof calcInput === 'function') calcInput('7')">7</button>
+                    <button class="secondary" style="padding:15px; font-size:1.3rem; background: var(--surface); color:#334155; font-weight:bold;" onclick="if(typeof calcInput === 'function') calcInput('8')">8</button>
+                    <button class="secondary" style="padding:15px; font-size:1.3rem; background: var(--surface); color:#334155; font-weight:bold;" onclick="if(typeof calcInput === 'function') calcInput('9')">9</button>
+                    <button class="secondary" style="padding:15px; font-size:1.5rem; background:var(--surface); font-weight:bold;" onclick="if(typeof calcInput === 'function') calcInput('-')">-</button>
+                    
+                    <button class="secondary" style="padding:15px; font-size:1.3rem; background: var(--surface); color:#334155; font-weight:bold;" onclick="if(typeof calcInput === 'function') calcInput('4')">4</button>
+                    <button class="secondary" style="padding:15px; font-size:1.3rem; background: var(--surface); color:#334155; font-weight:bold;" onclick="if(typeof calcInput === 'function') calcInput('5')">5</button>
+                    <button class="secondary" style="padding:15px; font-size:1.3rem; background: var(--surface); color:#334155; font-weight:bold;" onclick="if(typeof calcInput === 'function') calcInput('6')">6</button>
+                    <button class="secondary" style="padding:15px; font-size:1.5rem; background:var(--surface); font-weight:bold;" onclick="if(typeof calcInput === 'function') calcInput('+')">+</button>
+                    
+                    <button class="secondary" style="padding:15px; font-size:1.3rem; background: var(--surface); color:#334155; font-weight:bold;" onclick="if(typeof calcInput === 'function') calcInput('1')">1</button>
+                    <button class="secondary" style="padding:15px; font-size:1.3rem; background: var(--surface); color:#334155; font-weight:bold;" onclick="if(typeof calcInput === 'function') calcInput('2')">2</button>
+                    <button class="secondary" style="padding:15px; font-size:1.3rem; background: var(--surface); color:#334155; font-weight:bold;" onclick="if(typeof calcInput === 'function') calcInput('3')">3</button>
+                    <button style="padding:15px; font-size:1.5rem; grid-row: span 2; background:var(--primary); color:white; font-weight:bold; border-radius:8px; box-shadow:0 4px 6px rgba(59,130,246,0.3);" onclick="if(typeof calcInput === 'function') calcInput('=')">=</button>
+                    
+                    <button class="secondary" style="padding:15px; font-size:1.3rem; background: var(--surface); color:#334155; font-weight:bold; grid-column: span 2; border-radius:8px;" onclick="if(typeof calcInput === 'function') calcInput('0')">0</button>
+                    <button class="secondary" style="padding:15px; font-size:1.5rem; background: var(--surface); color:#334155; font-weight:bold;" onclick="if(typeof calcInput === 'function') calcInput('.')">.</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="mail-overlay" class="hidden personal-modal-overlay">
+        <div class="card" style="width:1100px; height: 80vh; display:flex; flex-direction:column; padding:0; overflow:hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--border); padding:15px 20px; background: var(--surface);">
+                <h3 style="margin:0; display:flex; align-items:center; gap:10px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                    Enterprise Mail Inbox
+                </h3>
+                <button type="button" class="danger" style="border-radius: 50%; width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; margin:0;" onclick="document.getElementById('mail-overlay').classList.add('hidden')" title="Close Mail">✕</button>
+            </div>
+            
+            <div id="mail-login-view" style="flex-grow:1; display:flex; flex-direction:column; align-items:center; justify-content:center; background: var(--bg); padding: 40px;">
+                <div class="card" style="width: 400px; text-align:center; padding: 40px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ea4335" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:20px;"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                    <h2 style="margin-bottom: 10px;">Sign in with Google</h2>
+                    <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 30px;">Securely connect your real Gmail workspace via OAuth 2.0 to sync live emails.</p>
+                    <button type="button" onclick="if(typeof handleAuthClick === 'function') handleAuthClick()" style="background: var(--surface); color:#333; border:1px solid #ccc; padding:12px 20px; border-radius:4px; font-weight:bold; display:flex; align-items:center; justify-content:center; gap:10px; width:100%; cursor:pointer;">
+                        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" style="width:18px;">
+                        Authenticate with Gmail
+                    </button>
+                </div>
+            </div>
+
+            <div id="mail-inbox-view" class="hidden" style="flex-grow:1; display:flex; background: var(--bg);">
+                <div style="width: 250px; border-right: 1px solid var(--border); background: var(--surface); display:flex; flex-direction:column; padding: 20px 0;">
+                    <button style="margin: 0 20px 20px 20px; background:var(--primary); padding:12px;" onclick="if(typeof handleSignoutClick === 'function') handleSignoutClick()">Disconnect Account</button>
+                    <div style="display:flex; flex-direction:column; gap:5px; padding: 0 10px;">
+                        <div style="padding:10px 15px; background:rgba(59, 130, 246, 0.1); color:var(--primary); border-radius:6px; font-weight:bold; cursor:pointer;">📥 Live Inbox</div>
+                        <div style="padding:10px 15px; color:var(--text); cursor:pointer; transition:0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.background='transparent'">⭐ Starred</div>
+                        <div style="padding:10px 15px; color:var(--text); cursor:pointer; transition:0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.background='transparent'">🚀 Sent</div>
+                    </div>
+                </div>
+                <div style="flex-grow:1; display:flex; flex-direction:column;">
+                    <div style="padding:15px 20px; border-bottom:1px solid var(--border); background:var(--surface); display:flex; justify-content:space-between; align-items:center;">
+                        <div style="font-weight:bold; color:var(--primary);" id="mail-status-text">Connected to Gmail</div>
+                        <button class="secondary" id="mail-refresh-btn" onclick="if(typeof refreshMailInbox === 'function') refreshMailInbox()" style="padding:6px 12px; border:none; background:transparent;">🔄 Refresh</button>
+                    </div>
+                    <div id="real-mail-list" style="flex-grow:1; overflow-y:auto; padding: 10px;">
+                        </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="command-palette-overlay" class="hidden" style="display:none; position:fixed; inset:0; z-index:10002; justify-content:center; padding-top:12vh;">
+        <div class="spotlight-box">
+            <div class="cp-input-wrap">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                <input type="text" id="cp-input" placeholder="Type a command or search..."
+                    oninput="if(typeof filterCommands === 'function') filterCommands()"
+                    autocomplete="off">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span style="font-size: 0.7rem; background: var(--bg); padding: 4px 8px; border-radius: 6px; font-weight: 800; color: var(--text-muted); opacity: 0.7;">ESC</span>
+                    <span style="cursor:pointer; color:var(--text-muted); font-weight:bold; font-size: 1.2rem; line-height:1; padding: 4px; border-radius: 4px; transition: all 0.2s;" onmouseover="this.style.color='var(--danger)'; this.style.background='rgba(239,68,68,0.1)';" onmouseout="this.style.color='var(--text-muted)'; this.style.background='';" onclick="toggleCommandPalette()">✕</span>
+                </div>
+            </div>
+            <div id="cp-results" style="overflow-y:auto; flex-grow:1; background: var(--surface); max-height: 400px;"></div>
+        </div>
+    </div>
+
+    <div class="sidebar" id="sidebar">
+        <div class="brand">
+            <span class="brand-icon" style="display:flex; align-items:center;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: #3b82f6;"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+            </span>
+            <span class="brand-text" style="font-weight:900; letter-spacing:1px;">SMA ERP</span>
+        </div>
+
+        <div class="workspace-switcher-block" style="padding: 10px 18px; border-bottom: 1px solid rgba(255,255,255,0.05);">
+            <select id="header-workspace-switcher" onchange="if(typeof window.switchCompany === 'function') window.switchCompany(this.value)" style="width: 100%; font-size: 0.85rem; font-weight: 700; padding: 8px 12px; border-radius: 6px; background: rgba(255,255,255,0.08); color: #f8fafc; border: 1px solid rgba(255,255,255,0.2); cursor: pointer; outline:none; transition: all 0.2s;">
+                <option value="JFT_MAIN" style="color: #0f172a; font-weight: 600;">🏢 Primary Branch</option>
+            </select>
+        </div>
+
+        <div class="nav" id="sidebar-nav"></div>
+        <div class="sidebar-footer"
+            style="padding: 15px; border-top: 1px solid rgba(255,255,255,0.1); font-size: 0.8rem; background: transparent !important;">
+            <div class="sidebar-footer-content">
+                <div id="last-refresh-time" style="color:var(--success); margin-top:5px; font-size:0.7rem;">Connecting to Cloud...</div>
+                <div id="last-backup-time" style="color:var(--text-muted); font-size:0.7rem;"></div>
+                
+                <div id="software-version-display" style="color:var(--text-muted); font-size:0.75rem; margin-top:10px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 8px;">
+                    <b>System Version:</b> v8.3 Enterprise
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <header class="header">
+            <!-- Left Side: Navigation & Title -->
+            <div style="display: flex; align-items: center; gap: 20px;">
+                <button type="button" class="utility-btn" onclick="toggleSidebar()" title="Toggle Sidebar" style="border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; background: var(--surface);">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" x2="21" y1="6" y2="6"/><line x1="3" x2="21" y1="12" y2="12"/><line x1="3" x2="21" y1="18" y2="18"/></svg>
+                </button>
+                <div style="display: flex; flex-direction: column; line-height: 1.2;">
+                    <!-- Removed duplicate workspace switcher -->
+                    <h2 id="page-title" style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--text); letter-spacing: -0.02em;">DASHBOARD</h2>
+                </div>
+            </div>
+
+            <!-- Right Side: Utilities & Profile -->
+            <div class="header-actions" style="display:flex; align-items:center; gap: 15px;">
+                
+                <!-- AI & Command Palette Group -->
+                <div style="display:flex; align-items:center; gap: 10px; background: rgba(0,0,0,0.02); padding: 4px 8px; border-radius: 10px; border: 1px solid rgba(0,0,0,0.03);">
+                    <button type="button" class="primary" 
+                        onclick="if(typeof renderAIAssistant === 'function') { renderAIAssistant(); showTab('ai-assistant'); } else { showTab('ai-assistant'); }" 
+                        style="background: linear-gradient(180deg, #10b981 0%, #059669 100%); border: 1px solid #047857; padding: 6px 14px; font-weight:700; color:white; border-radius: 8px; box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2); font-size: 0.85rem;" 
+                        title="Enterprise AI Assistant">✨ GPT AI
+                    </button>
+                    <button type="button" class="secondary"
+                        onclick="if(typeof toggleCommandPalette === 'function') toggleCommandPalette()"
+                        style="padding: 6px 14px; font-weight: 600; font-size: 0.85rem; border-radius: 8px;"
+                        title="Command Palette (Ctrl+K)">⚡ Quick Action</button>
+                </div>
+
+                <div style="width: 1px; height: 24px; background: var(--border); margin: 0 4px;"></div>
+
+                <!-- Utilities Group -->
+                <div style="display:flex; align-items:center; gap: 6px;">
+                    <button type="button" class="utility-btn" onclick="if(typeof openCalculatorModal === 'function') openCalculatorModal();" title="Calculator">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="20" x="4" y="2" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="16" x2="16.01" y1="14" y2="14"/><line x1="16" x2="16.01" y1="10" y2="10"/><line x1="16" x2="16.01" y1="18" y2="18"/><line x1="8" x2="8.01" y1="14" y2="14"/><line x1="8" x2="8.01" y1="10" y2="10"/><line x1="8" x2="8.01" y1="18" y2="18"/><line x1="12" x2="12.01" y1="14" y2="14"/><line x1="12" x2="12.01" y1="10" y2="10"/><line x1="12" x2="12.01" y1="18" y2="18"/></svg>
+                    </button>
+                    <button type="button" class="utility-btn" onclick="if(typeof initNotepad === 'function') initNotepad();" title="Enterprise Notepad">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                    </button>
+                    <button type="button" class="utility-btn" onclick="document.getElementById('mail-overlay').classList.remove('hidden');" title="Enterprise Mail">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                    </button>
+                    <button type="button" class="utility-btn" onclick="if(typeof initCalendar === 'function') initCalendar();" title="Corporate Calendar" style="position:relative;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                        <span id="calendar-badge" style="background:var(--danger); color:white; border-radius:50%; padding:2px 6px; font-size:0.6rem; font-weight: bold; position:absolute; top:-5px; right:-5px; display:none; box-shadow: 0 0 5px rgba(0,0,0,0.2);">0</span>
+                    </button>
+                    <button type="button" class="utility-btn" onclick="if(typeof openWorldClockModal === 'function') openWorldClockModal();" title="Global World Clocks">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    </button>
+                    <button type="button" class="utility-btn" onclick="if(typeof toggleTheme === 'function') toggleTheme()" title="Toggle Theme" id="theme-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                    </button>
+
+                    <div style="position:relative; margin-left: 5px;">
+                        <button type="button" class="utility-btn" onclick="if(typeof toggleNotificationPanel === 'function') toggleNotificationPanel()" style="position:relative;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                            <span id="notification-badge" style="background:var(--danger); color:white; border-radius:50%; padding:2px 5px; font-size:0.6rem; font-weight: bold; position:absolute; top:-4px; right:-2px; display:none;">0</span>
+                        </button>
+                        <!-- Panel logic stays exactly the same -->
+                        <div id="notification-panel" class="hidden card" style="position:absolute; right:0; top:55px; width:450px; z-index:100; padding:0; display:none; box-shadow: var(--shadow-lg);">
+                            <div style="padding:15px; border-bottom:1px solid var(--border); font-weight:bold; display:flex; justify-content:space-between; align-items:center; background: var(--surface); border-radius: 16px 16px 0 0;">
+                                <span>System Notifications</span> 
+                                <div style="display:flex; gap:10px; align-items: center;">
+                                    <button class="secondary" style="font-size:0.75rem; padding: 4px 10px;" onclick="if(typeof clearAllNotifications === 'function') clearAllNotifications()">Clear All</button>
+                                    <span style="cursor:pointer; color:var(--text-muted); font-size: 1.1rem; transition: color 0.2s;" onclick="if(typeof toggleNotificationPanel === 'function') toggleNotificationPanel()" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--text-muted)'">✕</span>
+                                </div>
+                            </div>
+                            <div id="notification-list" style="max-height:400px; overflow-y:auto; color:var(--text); text-align:center; background: var(--bg);">
+                                <span style="color:var(--text-muted); display:inline-block; padding: 30px; font-size: 0.95rem;">No new notifications.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="width: 1px; height: 24px; background: var(--border); margin: 0 4px;"></div>
+
+                <!-- Sync & Local Save Group -->
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <button type="button" class="utility-btn" onclick="if(typeof triggerManualMasterBackup === 'function') triggerManualMasterBackup();" title="Manual Local Backup" style="background: rgba(16, 185, 129, 0.1); border-radius: 8px; padding: 6px; border: 1px solid rgba(16, 185, 129, 0.2); color: var(--success); display:flex;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    </button>
+                    <button type="button" onclick="window.forceSync()" style="display:flex; align-items:center; gap:6px; padding: 6px 12px; font-size: 0.85rem; border-radius: 8px; background: var(--surface); border: 1px solid var(--border); color: var(--text); box-shadow: var(--shadow-sm);">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+                        Sync
+                    </button>
+                </div>
+
+                <div style="width: 1px; height: 24px; background: var(--border); margin: 0 4px;"></div>
+
+                <!-- User Profile -->
+                <div style="position:relative;">
+                    <div class="user-profile-btn"
+                        onclick="if(typeof toggleProfileMenu === 'function') toggleProfileMenu()"
+                        style="cursor:pointer; border-radius:12px; border:2px solid var(--border); padding: 2px; transition: border-color 0.2s;"
+                        onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border)'">
+                        <div class="chat-avatar"
+                            style="width:36px; height:36px; background: linear-gradient(135deg, var(--primary), var(--info)); color:white; border-radius: 8px; font-size: 1rem; font-weight:800;" id="header-avatar">
+                            U</div>
+                    </div>
+                    <div id="profile-dropdown" class="hidden card"
+                        style="position:absolute; right:0; top:55px; width:220px; z-index:200; padding:10px 0; border:1px solid var(--border); box-shadow: var(--shadow-lg);">
+                        <div style="padding: 10px 20px; border-bottom: 1px solid var(--border); margin-bottom: 5px;">
+                            <b id="dd-username" style="color:var(--text);">User</b><br>
+                            <span style="font-size:0.75rem; color:var(--text-muted);" id="dd-role">Role</span>
+                        </div>
+                        <a href="#" class="profile-dd-item"
+                            onclick="showTab('settings'); toggleProfileMenu(); return false;">⚙️ Account Settings</a>
+                        
+                        <div id="company-switch-dd-container" style="border-top:1px solid var(--border); margin-top:5px; padding: 10px 15px; background: rgba(59, 130, 246, 0.05);">
+                            <label style="font-size: 0.6rem; color: var(--text-muted); font-weight: bold; margin-bottom: 5px; display:block;">MANAGED BUSINESSES</label>
+                            <select id="co-switch-select" onchange="window.switchCompany(this.value)" style="width: 100%; padding: 4px; border-radius: 4px; font-size: 0.8rem; border:1px solid var(--border); background:white;">
+                                <!-- To be filled by UI.js -->
+                            </select>
+                        </div>
+
+                        <hr style="border:0; border-top:1px solid var(--border); margin: 5px 0;">
+                        <a href="#" class="profile-dd-item"
+                            onclick="if(typeof lockSession==='function') lockSession(true); toggleProfileMenu(); return false;">🔒 Lock Screen</a>
+                        <a href="#" class="profile-dd-item" style="color:var(--danger);"
+                            onclick="if(typeof performLogout==='function') performLogout(); toggleProfileMenu(); return false;">🚪 Logout</a>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- MULTI-TASKING TAB BAR -->
+        <div id="multi-task-tab-bar" style="display:flex; gap: 8px; overflow-x:auto; padding: 10px 15px 0 15px; background: var(--bg); border-bottom: 1px solid var(--border); min-height:40px; box-shadow: inset 0 -1px 0 var(--border);">
+            <!-- Tabs injected by JS -->
+        </div>
+
+        <div id="system-notification-area"
+            style="position:fixed; bottom:20px; right:20px; z-index:30000; display:flex; flex-direction:column; gap:10px;">
+        </div>
+
+        <div id="views-container"
+            style="position: relative; height: calc(100vh - 80px); overflow-y: auto; padding-bottom: 50px;">
+            <div id="loading-indicator" style="padding: 20px; text-align: center; color: var(--text-muted);">
+                <h3>Downloading UI Modules...</h3>
+                <p>Please wait while the system boots.</p>
+            </div>
+            <!-- Dynamic Modules are injected here -->
+            <div id="ai-assistant" class="main-tab" style="display:none;"></div>
+        </div>
+    </div>
+
+    <style>
+        .chat-bubble-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            z-index: 10000;
+            width: 65px;
+            height: 65px;
+            border-radius: 50%;
+            background: #3b82f6; /* Solid bright blue */
+            color: white;
+            font-size: 1.8rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .chat-bubble-btn:hover {
+            transform: translateY(-5px);
+            background: #2563eb;
+            box-shadow: 0 8px 25px rgba(59, 130, 246, 0.5);
+        }
+
+        .chat-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #ef4444;
+            color: white;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            box-shadow: 0 2px 5px rgba(239, 68, 68, 0.5);
+        }
+
+        .chat-popup-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            z-index: 10001;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .chat-popup-overlay.hidden {
+            display: none !important;
+        }
+
+        .chat-wrapper {
+            width: 900px;
+            height: 700px;
+            max-width: 95vw;
+            max-height: 90vh;
+            background: var(--surface); /* Clean white background */
+            border-radius: 12px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+            display: flex;
+            overflow: hidden;
+        }
+
+        .chat-sidebar {
+            width: 320px;
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            background: var(--bg); /* Very light gray sidebar */
+        }
+
+        .chat-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--surface);
+        }
+
+        .chat-avatar {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%; /* Classic circular avatar */
+            background: var(--border);
+            border: 1px solid var(--border);
+            color: #334155;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+
+        .chat-header-glass {
+            padding: 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--surface);
+        }
+
+        .chat-user-item {
+            padding: 15px 20px;
+            display: flex;
+            gap: 15px;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: #334155;
+        }
+
+        .chat-user-item:hover {
+            background: var(--bg);
+        }
+
+        .chat-user-item.active {
+            background: rgba(59, 130, 246, 0.1); /* Soft blue active state */
+            border-left: 4px solid #3b82f6;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 25px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            background: var(--bg); /* Soft background for message area */
+        }
+
+        .chat-bubble {
+            max-width: 75%;
+            padding: 12px 18px;
+            border-radius: 18px;
+            position: relative;
+            font-size: 0.95rem;
+            line-height: 1.4;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+
+        .bubble-left {
+            align-self: flex-start;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-bottom-left-radius: 4px; /* Classic chat tail */
+            color: #334155;
+        }
+
+        .bubble-right {
+            align-self: flex-end;
+            background: #3b82f6;
+            border-bottom-right-radius: 4px;
+            color: var(--surface);
+            border: none;
+        }
+
+        .chat-time {
+            display: block;
+            font-size: 0.7rem;
+            margin-top: 5px;
+            opacity: 0.8;
+            text-align: right;
+        }
+
+        .chat-input-area {
+            padding: 15px 20px;
+            border-top: 1px solid var(--border);
+            background: var(--surface);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .chat-input-toolbar {
+            display: flex;
+            gap: 15px;
+        }
+        
+        .chat-toolbar-btn {
+            background: transparent;
+            border: none;
+            color: #64748b;
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: color 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .chat-toolbar-btn:hover { color: #3b82f6; }
+
+        .chat-input-glass {
+            width: 100%;
+            padding: 12px 20px;
+            border-radius: 24px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: #0f172a;
+            font-family: inherit;
+            outline: none;
+            transition: all 0.2s ease;
+            font-size: 0.95rem;
+            display: block;
+            box-sizing: border-box;
+        }
+
+        .chat-input-glass:focus {
+            background: var(--surface);
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .chat-send-btn {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-left: 10px;
+            flex-shrink: 0;
+        }
+
+        .chat-send-btn:hover {
+            transform: scale(1.05);
+            background: #2563eb;
+        }
+    </style>
+
+    <div id="chat-floating-btn" class="chat-bubble-btn"
+        onclick="if(typeof toggleChatPopup === 'function') toggleChatPopup()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m3 21 1.9-5.7a8.5 8.5 0 1 1 3.8 3.8z" />
+        </svg>
+        <span id="chat-unread-badge" class="chat-badge" style="display:none;">0</span>
+    </div>
+
+    <div id="chat-popup" class="hidden chat-popup-overlay">
+        <div class="chat-wrapper">
+            <div class="chat-sidebar">
+                <div class="chat-header-glass">
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        <div class="chat-avatar" id="my-chat-avatar" style="background:var(--primary); color:white; border:none;">U</div>
+                        <div style="line-height: 1.3;">
+                            <b id="my-chat-name" style="color:#0f172a; font-size:1.1rem;">My Profile</b><br>
+                            <span style="font-size: 0.8rem; color: #16a34a; font-weight:bold;">● Online</span>
+                        </div>
+                    </div>
+                    <button class="chat-toolbar-btn" title="Create Group" onclick="if(typeof createChatGroup === 'function') createChatGroup()">👥</button>
+                </div>
+                <div style="padding: 15px; border-bottom: 1px solid var(--border);">
+                    <input type="text" class="chat-input-glass" style="padding:10px 15px; border-radius:8px;"
+                        placeholder="Search Directory..."
+                        oninput="if(typeof filterChatUsers === 'function') filterChatUsers(this.value)">
+                </div>
+                <div class="chat-user-list" id="chat-user-list" style="overflow-y:auto; flex:1;"></div>
+            </div>
+
+            <div class="chat-main">
+                <div id="chat-empty-state"
+                    style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color:#94a3b8; background: var(--bg);">
+                    <div style="font-size:4rem; margin-bottom:20px; opacity:0.3;">💬</div>
+                    <h3 style="font-weight:bold; font-size:1.5rem; margin:0 0 10px 0; color:#475569;">Enterprise Messenger</h3>
+                    <p style="font-size:0.9rem;">Select a team member to start a secure conversation.</p>
+                </div>
+
+                <div id="chat-active-state" class="hidden" style="display:flex; flex-direction:column; height:100%;">
+                    <div class="chat-header-glass">
+                        <div style="display:flex; align-items:center; gap:12px;">
+                            <div class="chat-avatar" id="active-chat-avatar" style="background:var(--border); border:none;">U</div>
+                            <div style="line-height: 1.3;">
+                                <b id="active-chat-name" style="font-size: 1.1rem; color: #0f172a;">User Name</b><br>
+                                <span style="color: #16a34a; font-size: 0.8rem; font-weight:bold;">● In Network</span>
+                            </div>
+                        </div>
+                        <div style="display:flex; gap:10px; align-items:center;">
+                            <button class="chat-toolbar-btn" title="Search Chat" onclick="if(typeof searchCurrentChat === 'function') searchCurrentChat()">🔍</button>
+                            <button class="chat-toolbar-btn" title="Pin Chat" onclick="if(typeof pinCurrentChat === 'function') pinCurrentChat()">📌</button>
+                            <button class="chat-toolbar-btn" title="Mute" onclick="if(typeof muteCurrentChat === 'function') muteCurrentChat()">🔕</button>
+                            <button class="chat-toolbar-btn" title="Download" onclick="if(typeof downloadChatHistory === 'function') downloadChatHistory()">⬇️</button>
+                            <button class="chat-toolbar-btn" title="Clear Chat" onclick="if(typeof clearCurrentChat === 'function') clearCurrentChat()" style="color:#ef4444">🗑️</button>
+                            <div style="border-left: 1px solid var(--border); height: 20px; margin: 0 5px;"></div>
+                            <button class="chat-toolbar-btn" style="font-size:1.5rem;" onclick="toggleChatPopup()">✕</button>
+                        </div>
+                    </div>
+
+                    <div class="chat-messages" id="chat-messages-container"></div>
+
+                    <div class="chat-input-area">
+                        <div class="chat-input-toolbar">
+                            <button type="button" class="chat-toolbar-btn" title="Attach/Paste Image" onclick="if(typeof triggerChatImageUpload === 'function') triggerChatImageUpload()"><span style="font-size: 1rem; margin-right: 5px;">📎</span> Attach</button>
+                            <button type="button" class="chat-toolbar-btn" title="Insert Emoji" onclick="if(typeof toggleChatEmojiPicker === 'function') toggleChatEmojiPicker()"><span style="font-size: 1rem; margin-right: 5px;">😀</span> Emoji</button>
+                        </div>
+                        <form
+                            onsubmit="event.preventDefault(); if(typeof sendChatMessage === 'function') sendChatMessage();"
+                            style="display:flex; width: 100%; align-items: center; margin:0;">
+                            <input type="text" id="chat-input-text" class="chat-input-glass"
+                                placeholder="Type your message here..."
+                                autocomplete="off">
+                            <button type="submit" class="chat-send-btn" title="Send Message">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <path d="m22 2-7 20-4-9-9-4Z" />
+                                    <path d="M22 2 11 13" />
+                                </svg>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="assets/js/core/enterprise.js"></script>
+    <script src="assets/js/core/db.js"></script>
+    <script src="assets/js/core/ui.js"></script>
+
+    <script src="assets/js/modules/dashboard.js"></script>
+    <script src="assets/js/modules/documents.js"></script>
+    <script src="assets/js/modules/pricelist.js"></script>
+    <script src="assets/js/modules/lc-manager.js"></script>
+    <script src="assets/js/modules/costing.js"></script>
+    <script src="assets/js/modules/incentives.js"></script>
+    <script src="assets/js/modules/logistics.js"></script>
+    <script src="assets/js/modules/doc-drafts.js"></script>
+    <script src="assets/js/modules/inventory.js"></script>
+    <script src="assets/js/modules/finance.js"></script>
+    <script src="assets/js/modules/attendance.js"></script>
+    <script src="assets/js/modules/tasks.js"></script>
+    <script src="assets/js/modules/print.js"></script>
+    <script src="assets/js/modules/exporter-data.js"></script>
+    <script src="assets/js/modules/settings.js"></script>
+    <script src="assets/js/modules/chat.js"></script>
+    <script src="assets/js/modules/crm.js"></script>
+    <script src="assets/js/modules/import.js"></script>
+    <script src="assets/js/modules/reports.js"></script>
+    <script src="assets/js/modules/ai-assistant.js"></script>
+
+    <script>
+        document.addEventListener('keydown', function (e) {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                e.preventDefault();
+                if (typeof toggleCommandPalette === 'function') toggleCommandPalette();
+            }
+        });
+
+        async function loadViews() {
+            const container = document.getElementById('views-container');
+            const isDesktop = typeof window.electron !== 'undefined';
+            const { fs: fsObj, path: pathObj } = window.electron || {};
+            const dirname = window.electron?.process?.cwd() || ''; // Adjusted for safe electron bounds
+
+            // --- ZERO-DELAY LAZY LOAD ENGINE ---
+            // Only the dashboard is loaded during the initial boot. All other modules 
+            // wait until the exact moment a user clicks them via showTab().
+            try {
+                let html = '';
+                if (isDesktop && fsObj && pathObj) {
+                    const viewPath = pathObj.join(dirname, 'views', 'dashboard.html');
+                    if (fsObj.exists(viewPath)) html = fsObj.read(viewPath, 'utf8');
+                }
+                
+                if (!html) {
+                    const response = await fetch(`views/dashboard.html`);
+                    if (response.ok) html = await response.text();
+                }
+
+                if (html) {
+                    container.insertAdjacentHTML('beforeend', html);
+                    console.log(`[CORE] Dashboard Engine Bootstrapped (PWA Lazy-Load).`);
+                } else {
+                    console.warn(`[CORE] Dashboard fetch returned empty or 404.`);
+                }
+            } catch (err) {
+                console.error("CRITICAL: DOM Bootloader Failed!", err);
+            }
+            // FINAL STEP: Delay logic boot slightly to ensure DOM is settled
+            setTimeout(() => {
+                if (typeof initApp === 'function') {
+                    console.log("[CORE] Initializing Business Logic...");
+                    initApp();
+                }
+            }, 100);
+
+            const loader = document.getElementById('loading-indicator');
+            if (loader) loader.remove();
+        }
+
+        // --- ALL YOUR OTHER SCRIPTS STAY SAFELY ABOVE THIS LINE ---
+
+        window.addEventListener('DOMContentLoaded', loadViews);
+
+        // --- TRUE OFFLINE PWA CAPABILITY ---
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./service-worker.js')
+                .then(registration => {
+                    console.log('[System] ServiceWorker Registered successfully (Scope: ' + registration.scope + ')');
+                })
+                .catch(err => {
+                    console.error('[System] ServiceWorker failed:', err);
+                });
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,68 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // CORE AUTH: Verify user is logged into Firebase Auth
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // ROLE ENGINE: Fetch user profile from the root 'users' collection
+    // This assumes the user's Auth UID matches their document ID.
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && getUserData().role == 'admin';
+    }
+
+    function isStaff() {
+      return isAuthenticated() && (getUserData().role == 'staff' || getUserData().role == 'admin');
+    }
+
+    // MULTI-TENANCY GUARD
+    // Ensures a user can only access the CID (Company ID) they are assigned to.
+    function belongsToTenant(cid) {
+      return isAuthenticated() && (getUserData().cid == cid || isAdmin());
+    }
+
+    // 1. Root Users Management (Critical Security)
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (request.auth.uid == userId && 
+            !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'canDelete', 'cid', 'allowedModules']));
+    }
+
+    // 2. Multi-Tenant Data Engine (Docs, Inventory, Logistics)
+    match /tenants/{cid}/{collection}/{docId} {
+      // READ: Users can read their own company's data. 
+      // Admin can read everything across all companies.
+      allow read: if belongsToTenant(cid);
+
+      // WRITE: Staff/Admin can write data. 
+      // Buyers (Client Portal) are strictly READ-ONLY.
+      allow create, update: if belongsToTenant(cid) && isStaff();
+
+      // DELETE: Granular permission check
+      allow delete: if belongsToTenant(cid) && (getUserData().canDelete == true || isAdmin());
+    }
+
+    // 3. System-Wide Logic
+    match /jft_config/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin(); 
+    }
+
+    match /system_logs/{logId} {
+      allow read, create: if isAuthenticated();
+      allow update, delete: if false;
+    }
+
+    // GLOBAL CATCH-ALL (Secure by Default)
+    match /{collection}/{documentId} {
+      allow read, write: if isAdmin();
+    }
+  }
+}
