@@ -1,0 +1,671 @@
+<style>
+    /* ADVANCED FILTER STYLING (Same as Finance) */
+    .imp-filter-box {
+        background-color: var(--bg); border: 1px solid var(--border); border-radius: 12px;
+        padding: 15px 20px; display: flex; align-items: flex-end; margin-bottom: 25px;
+        gap: 12px; overflow-x: auto;
+    }
+    .imp-filter-item { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
+    .imp-filter-label { font-size: 0.72rem; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
+    .imp-filter-input { 
+        padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px;
+        font-size: 0.9rem; background: var(--surface); color: var(--text); height: 40px;
+    }
+    
+    /* DOSSIER & KPI VISUALS */
+    .imp-kpi-card {
+        border-radius: 12px; padding: 20px; position: relative; overflow: hidden;
+        border: 1px solid var(--border); transition: transform 0.2s;
+    }
+    .imp-kpi-card:hover { transform: translateY(-2px); }
+    .imp-status-badge {
+        padding: 4px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: 800; text-transform: uppercase;
+    }
+    .status-in-transit { background: rgba(59, 130, 246, 0.1); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.2); }
+    .status-at-port { background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.2); }
+    .status-cleared { background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.2); }
+    
+    .hidden { display: none !important; }
+</style>
+
+<div id="import-mgmt" class="main-tab">
+    <!-- TOP NAVIGATION (STICKY ENABLED) -->
+    <div class="sticky-sub-nav">
+        <button class="sub-tab-btn active" id="btn-imp-ledger" onclick="switchImportTab('ledger')">📦 Shipment Ledger</button>
+        <button class="sub-tab-btn" id="btn-imp-calc" onclick="switchImportTab('calc')">⚖️ Landing Cost & Duty</button>
+        <button class="sub-tab-btn" id="btn-imp-expense" onclick="switchImportTab('expense')">💸 Expense Ledger</button>
+        <button class="sub-tab-btn" id="btn-imp-forex" onclick="switchImportTab('forex')">🛡️ Forex & MAFAE Advisor</button>
+        <button class="sub-tab-btn" id="btn-imp-pnl" onclick="switchImportTab('pnl')">📊 Division P&L</button>
+        <button class="sub-tab-btn" id="btn-imp-logistics" onclick="switchImportTab('logistics')">🚛 Logistics & Cargo</button>
+        <button class="sub-tab-btn" id="btn-imp-dossier" onclick="switchImportTab('dossier')">📂 360° Import Dossier</button>
+    </div>
+
+    <!-- TAB 1: SHIPMENT LEDGER -->
+    <div id="imp-ledger-tab" class="import-container">
+        <div class="card" style="margin-bottom: 25px; border-top: 4px solid var(--primary);">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h3 style="margin:0;">🚢 Import Entry & Vessel Tracking</h3>
+                <button onclick="window.resetImportForm()" class="secondary" style="font-size:0.75rem;">+ New Shipment</button>
+            </div>
+            <form id="imp-master-form" onsubmit="window.saveImportDetailed(event)" style="margin-top:20px;">
+                <div class="grid-4">
+                    <div style="grid-column: span 2;"><label>Foreign Supplier / Vendor</label><input type="text" id="imp-det-supplier" required placeholder="e.g. Global Agri Corp"></div>
+                    <div><label>Purchase Ref / Inv No</label><input type="text" id="imp-det-ref" required placeholder="INV-2024-001"></div>
+                    <div><label>Financial Year</label>
+                        <select id="imp-det-fy">
+                            <option value="2023-24">2023-24</option>
+                            <option value="2024-25" selected>2024-25</option>
+                            <option value="2025-26">2025-26</option>
+                        </select>
+                    </div>
+
+                    <div><label>OBL Number (Sea)</label><input type="text" id="imp-det-obl" placeholder="OBL123456"></div>
+                    <div><label>AWB Number (Air)</label><input type="text" id="imp-det-awb" placeholder="AWB789012"></div>
+                    <div><label>Commodity / Item</label><input type="text" id="imp-det-product" required></div>
+                    <div><label>Qty (MT/Unit)</label><input type="number" step="0.001" id="imp-det-qty" required></div>
+                    
+                    <div><label>CIF Value ($)</label><input type="number" step="0.01" id="imp-det-val" required></div>
+                    <div><label>Currency</label><select id="imp-det-curr"><option value="USD">USD</option><option value="EUR">EUR</option></select></div>
+                    <div><label>Vessel / Carrier Name</label>
+                        <input list="ship-carriers" id="imp-det-vessel" placeholder="Select or Type Carrier">
+                        <datalist id="ship-carriers">
+                            <option value="Maersk Line">
+                            <option value="MSC (Mediterranean Shipping)">
+                            <option value="CMA CGM">
+                            <option value="Hapag-Lloyd">
+                            <option value="COSCO Shipping">
+                            <option value="ONE (Ocean Network Express)">
+                            <option value="Evergreen Marine">
+                            <option value="Yang Ming">
+                            <option value="ZIM">
+                            <option value="DHL Global Forwarding">
+                            <option value="FedEx Express">
+                            <option value="Emirates SkyCargo">
+                        </datalist>
+                    </div>
+                    <div><label>Port of Loading (POL)</label><input type="text" id="imp-det-pol" placeholder="e.g. Port Santos"></div>
+                    
+                    <div><label>Port of Unloading (POD)</label><input type="text" id="imp-det-pod" placeholder="e.g. Mundra / Nhava Sheva"></div>
+                    <div><label>ETD (Departure)</label><input type="date" id="imp-det-etd"></div>
+                    <div><label>ETA (Arrival)</label><input type="date" id="imp-det-eta"></div>
+                    <div><label>Current Status</label>
+                        <select id="imp-det-status">
+                            <option value="In Transit">🚢 In Transit</option>
+                            <option value="At Port">⚓ At Port</option>
+                            <option value="Cleared">✅ Cleared</option>
+                            <option value="Pending">🕒 Pending</option>
+                            <option value="Cancelled">❌ Cancelled</option>
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" style="margin-top:20px; width:100%; font-weight:800; background:var(--primary);">🛡️ Synchronize Detailed Shipment Record</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <div class="imp-filter-box">
+                <div class="imp-filter-item">
+                    <span class="imp-filter-label">FINANCIAL YEAR</span>
+                    <select class="imp-filter-input" id="imp-filter-fy" onchange="renderImportLedger()"><option value="">All Years</option><option value="2024-25">2024-25</option></select>
+                </div>
+                <div class="imp-filter-item">
+                    <span class="imp-filter-label">STATUS</span>
+                    <select class="imp-filter-input" id="imp-filter-status" onchange="renderImportLedger()">
+                        <option value="">All Status</option>
+                        <option value="In Transit">In Transit</option>
+                        <option value="At Port">At Port</option>
+                        <option value="Cleared">Cleared</option>
+                    </select>
+                </div>
+                <div class="imp-filter-item" style="flex-grow:1;">
+                    <span class="imp-filter-label">SEARCH SUPPLIER / OBL / AWB / INV</span>
+                    <input type="text" class="imp-filter-input" id="imp-filter-search" placeholder="Quick search..." oninput="renderImportLedger()" style="width:100%;">
+                </div>
+                <button type="button" class="imp-filter-input" style="width:40px; padding:0; background:var(--bg); border-color:var(--border);" onclick="exportImportLedger()">📥</button>
+            </div>
+            <div style="overflow-x: auto;">
+                <table id="imp-ledger-table" style="font-size: 0.82rem; width:100%;">
+                    <thead>
+                        <tr>
+                            <th>Inv / FY</th>
+                            <th>OBL / AWB</th>
+                            <th>Supplier & Item</th>
+                            <th>Carrier & POD</th>
+                            <th>CIF Val ($)</th>
+                            <th>ETA / Arrival</th>
+                            <th>Status</th>
+                            <th>Track</th>
+                            <th style="text-align:right;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="imp-ledger-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 2: ADVANCED LANDING COST -->
+    <div id="imp-calc-tab" class="import-container hidden">
+        <div class="grid-2" style="grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div class="card" style="border-top: 4px solid #3b82f6;">
+                <h3 style="margin-bottom:20px;">⚖️ Landing Cost & Duty Simulator</h3>
+                <div class="grid-2">
+                    <div class="form-group"><label>CIF Value (USD)</label><input type="number" id="adv-imp-val" value="50000" oninput="runAdvImportCalc()"></div>
+                    <div class="form-group"><label>Exchange Rate (Live)</label>
+                        <div style="display:flex; gap:5px;">
+                            <input type="number" id="adv-imp-ex" value="83.50" oninput="runAdvImportCalc()">
+                            <button class="secondary" onclick="window.fetchImportLiveRate('adv-imp-ex')">🔄</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="grid-3" style="margin-top:10px;">
+                    <div><label>BCD (%)</label><input type="number" id="adv-imp-bcd" value="10" oninput="runAdvImportCalc()"></div>
+                    <div><label>SWS (%)</label><input type="number" id="adv-imp-sws" value="1" oninput="runAdvImportCalc()"></div>
+                    <div><label>IGST (%)</label><input type="number" id="adv-imp-igst" value="18" oninput="runAdvImportCalc()"></div>
+                </div>
+                <div class="grid-2" style="margin-top:10px; border-top: 1px solid var(--border); padding-top:15px;">
+                    <div><label>Port Ops / CHA (₹)</label><input type="number" id="adv-imp-local-ops" value="80000" oninput="runAdvImportCalc()"></div>
+                    <div><label>Inland Transport (₹)</label><input type="number" id="adv-imp-inland" value="35000" oninput="runAdvImportCalc()"></div>
+                </div>
+                <div style="display:flex; gap:10px; margin-top:20px;">
+                    <button class="primary" onclick="window.saveImportCosting()" style="flex:1;">💾 Save Costing</button>
+                    <button class="secondary" onclick="window.viewImportCalculation()" style="flex:1;">👁️ View Logic</button>
+                    <button class="secondary" onclick="window.clearImportCalc()" style="flex:0.3; background:var(--bg); border-color:var(--border);">🗑️ Clear</button>
+                </div>
+            </div>
+            <div class="card" style="background: rgba(59, 130, 246, 0.05); border: 1px dashed var(--primary);">
+                <h3>📊 Unit Cost Analysis</h3>
+                <div id="adv-imp-summary" style="margin-top:20px;">
+                    <div style="background:var(--surface); padding:15px; border-radius:12px; border:1px solid var(--border);">
+                        <div style="font-size:0.75rem; color:var(--text-muted); font-weight:800;">TOTAL LANDED COST (ESTIMATED)</div>
+                        <div id="adv-imp-tot-inr" style="font-size:2.5rem; font-weight:800; color:var(--primary);">₹0.00</div>
+                    </div>
+                    <div class="grid-2" style="margin-top:15px; gap:15px;">
+                        <div style="background:var(--surface); padding:10px; border-radius:8px; border:1px solid var(--border);">
+                            <div style="font-size:0.7rem; color:var(--text-muted);">PURCHASE INR</div>
+                            <div id="adv-imp-pur-inr" style="font-size:1.1rem; font-weight:700;">₹0</div>
+                        </div>
+                        <div style="background:var(--surface); padding:10px; border-radius:8px; border:1px solid var(--border);">
+                            <div style="font-size:0.7rem; color:var(--text-muted);">TOTAL DUTY</div>
+                            <div id="adv-imp-duty-inr" style="font-size:1.1rem; font-weight:700; color:var(--danger);">₹0</div>
+                        </div>
+                    </div>
+                </div>
+                <div style="margin-top:20px; font-size:0.8rem; line-height:1.6;">
+                    <b>🤖 Intelligence:</b> Landing analysis helps determine the **Break-Even Sale Price**. Ensure you account for 1.5% margin for handling losses on bulk commodities.
+                </div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top:25px;">
+            <div class="imp-filter-box">
+                <div class="imp-filter-item" style="flex-grow:1;">
+                    <span class="imp-filter-label">SEARCH SAVED COSTINGS</span>
+                    <input type="text" class="imp-filter-input" id="imp-calc-search" placeholder="Search by total or date..." oninput="renderImportSimHistory()">
+                </div>
+            </div>
+            <div style="overflow-x: auto;">
+                <table class="modern-table" style="font-size:0.8rem;">
+                    <thead>
+                        <tr>
+                            <th>ID & Date</th>
+                            <th>CIF Val ($)</th>
+                            <th>Rate (₹)</th>
+                            <th>Total Result (₹)</th>
+                            <th style="text-align:right;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="imp-sim-history-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 3: EXPENSE LEDGER -->
+    <div id="imp-expense-tab" class="import-container hidden">
+        <div class="card" style="border-top: 4px solid #ef4444;">
+             <h3>💸 Log Landing & Clearing Expense</h3>
+             <form id="imp-exp-form" onsubmit="window.saveImportExpenseDet(event)">
+                <div class="grid-4">
+                    <div><label>Expense Date</label><input type="date" id="impx-date" required></div>
+                    <div style="grid-column: span 2;"><label>Mapping (Select Shipment)</label><select id="impx-ref" required></select></div>
+                    <div><label>Category</label>
+                        <select id="impx-cat">
+                            <option value="Ocean Freight">Ocean Freight</option>
+                            <option value="CHA / Documentation">CHA / Documentation</option>
+                            <option value="Customs Duty">Customs Duty (TR-6)</option>
+                            <option value="Port Handling / THC">Port Handling / THC</option>
+                            <option value="Transport / Inland">Transport / Inland</option>
+                            <option value="Storage / Demurrage">Storage / Demurrage</option>
+                        </select>
+                    </div>
+                    <div style="grid-column: span 2;"><label>Vendor / Party Name</label><input type="text" id="impx-party" required placeholder="e.g. Mundra Port Trust"></div>
+                    <div><label>Vendor Invoice No</label><input type="text" id="impx-vendor-inv" placeholder="V-2024-ABC"></div>
+                    <div><label>Financial Year</label>
+                        <select id="impx-fy">
+                            <option value="2023-24">2023-24</option>
+                            <option value="2024-25" selected>2024-25</option>
+                            <option value="2025-26">2025-26</option>
+                        </select>
+                    </div>
+                    <div><label>Basic Amt (₹)</label><input type="number" id="impx-amt" required></div>
+                    <div><label>GST Amt (₹)</label><input type="number" id="impx-gst"></div>
+                    <div><label>TDS Deduction (₹)</label><input type="number" id="impx-tds" value="0"></div>
+                    <div><label>Payment Status</label>
+                        <select id="impx-status">
+                            <option value="Unpaid">🔴 Unpaid</option>
+                            <option value="Paid">🟢 Paid</option>
+                            <option value="Partial">🟡 Partial</option>
+                        </select>
+                    </div>
+                    <div style="grid-column: span 4;"><label>Remarks / Notes</label><input type="text" id="impx-remarks" placeholder="e.g. Paid via ICICI Bank Chq #123"></div>
+                </div>
+                <button type="submit" style="margin-top:20px; width:100%; font-weight:800; background:#ef4444;">💾 Synchronize Expense with Shipment Audit</button>
+             </form>
+        </div>
+        <div class="card" style="margin-top:25px;">
+            <div class="imp-filter-box">
+                <div class="imp-filter-item">
+                    <span class="imp-filter-label">EXPENSE YEAR</span>
+                    <select class="imp-filter-input" id="impx-filter-fy" onchange="renderImportExpenseLedger()"><option value="">All FY</option><option value="2024-25">2024-25</option></select>
+                </div>
+                <div class="imp-filter-item">
+                     <span class="imp-filter-label">STATUS</span>
+                     <select class="imp-filter-input" id="impx-filter-status" onchange="renderImportExpenseLedger()"><option value="">All Status</option><option value="Unpaid">Unpaid</option><option value="Paid">Paid</option></select>
+                </div>
+                <div class="imp-filter-item" style="flex-grow:1;"><span class="imp-filter-label">SEARCH VENDOR / REF</span><input type="text" class="imp-filter-input" id="impx-filter-search" oninput="renderImportExpenseLedger()" placeholder="Search expenses..."></div>
+            </div>
+            <div style="overflow-x: auto;">
+                <table style="font-size:0.8rem; width:100%;">
+                    <thead><tr><th>Ref & Date</th><th>Category</th><th>Vendor / Inv</th><th>Base Amt</th><th>GST</th><th>TDS</th><th>Total Payable</th><th>Status</th><th style="text-align:right;">Actions</th></tr></thead>
+                    <tbody id="impx-ledger-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 4: FOREX & MAFAE ENGINE -->
+    <div id="imp-forex-tab" class="import-container hidden">
+        <div id="imp-forex-ai-advisor" style="background: linear-gradient(135deg, #0f172a, #1e293b); border: 2px solid #3b82f6; border-radius: 12px; padding: 25px; margin-bottom: 25px; color: white;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:15px;">
+                <div>
+                    <h2 style="margin:0; color:#60a5fa;">🌍 MAFAE 2.0 - Import Risk Advisory</h2>
+                    <p style="margin:5px 0 0 0; color:#94a3b8; font-size:0.9rem;">Macro-Aware Forex Analysis for Import Payables & Forward Booking.</p>
+                </div>
+                <div style="text-align:right;">
+                    <button onclick="window.runMAFAEImportEngine()" class="secondary" style="background:#3b82f6; border:none; color:white;">🔄 Analyze Global Impact</button>
+                </div>
+            </div>
+            <div class="grid-4" style="gap:15px;">
+                <div class="card" style="background:rgba(255,255,255,0.02); text-align:center;">
+                    <label style="font-size:0.7rem; color:#94a3b8;">USD/INR PRICE</label>
+                    <div id="mi-usd-val" style="font-size:1.5rem; font-weight:bold;">₹--.--</div>
+                </div>
+                <div class="card" style="background:rgba(255,255,255,0.02); text-align:center;">
+                    <label style="font-size:0.7rem; color:#94a3b8;">OIL (BRENT CRUDE)</label>
+                    <div id="mi-oil-val" style="font-size:1.5rem; font-weight:bold;">$--.--</div>
+                </div>
+                <div class="card" style="background:rgba(255, 255, 255, 0.02); text-align:center;">
+                    <label style="font-size:0.7rem; color:#94a3b8;">MAFAE IMPACT</label>
+                    <div id="mi-impact-val" style="font-size:1.5rem; font-weight:bold;">--</div>
+                </div>
+                <div class="card" style="background:rgba(59,130,246,0.1); border:1px solid #3b82f6; text-align:center;">
+                    <label style="font-size:0.7rem; color:#3b82f6; font-weight:800;">RECOMMENDATION</label>
+                    <div id="mi-advice-val" style="font-size:1.2rem; font-weight:bold; color:#f1f5f9;">WAITING...</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="grid-2" style="grid-template-columns: 1fr 1fr; gap:25px;">
+            <div class="card" style="border-top: 4px solid var(--primary);">
+                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                    <h3 style="margin:0;">🛡️ Book New Forward Booking</h3>
+                 </div>
+                 <form id="imp-hedge-form" onsubmit="window.saveImportHedge(event)">
+                    <div class="grid-2">
+                        <div><label>Ref / Bank Booking ID</label><input type="text" id="imp-h-ref" required></div>
+                        <div><label>Bank Name</label><input type="text" id="imp-h-bank" value="ICICI / HDFC / SBI"></div>
+                        <div><label>USD Amount</label><input type="number" id="imp-h-amt" required></div>
+                        <div><label>Booked Rate (₹)</label><input type="number" step="0.01" id="imp-h-rate" required></div>
+                        <div><label>Expiry Date</label><input type="date" id="imp-h-exp" required></div>
+                        <div><label>Forward Type</label><select id="imp-h-type"><option value="Full">Fixed Forward</option><option value="Option">Vanilla Option</option></select></div>
+                    </div>
+                    <button type="submit" style="margin-top:20px; width:100%; background:var(--primary);">💾 Save Forward Contract</button>
+                 </form>
+            </div>
+            <div class="card">
+                <h3>Active Forward Contracts</h3>
+                <div style="overflow-y:auto; max-height:220px;">
+                    <table id="imp-hedge-detailed-table" style="font-size:0.8rem; width:100%;">
+                        <thead><tr><th>Ref</th><th>Amount</th><th>Rate</th><th>Expiry</th><th>Bal</th><th>Action</th></tr></thead>
+                        <tbody id="imp-hedge-detailed-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top:25px; border-top: 4px solid #f59e0b;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                 <h3 style="margin:0;">Import Payment Realization (USD Outstandings)</h3>
+            </div>
+            <form id="imp-pay-form" onsubmit="window.saveImportPayment(event)">
+                <div class="grid-4" style="gap:15px;">
+                    <div style="grid-column: span 1;"><label>Shipment Ref</label>
+                        <select id="imp-pay-ref" required onchange="window.updatePayableBalance()">
+                            <option value="">-- Select Shipment --</option>
+                        </select>
+                    </div>
+                    <div><label>Utilize Forward Booking</label>
+                        <select id="imp-pay-hedge-link">
+                            <option value="">-- No Hedge (Spot) --</option>
+                        </select>
+                    </div>
+                    <div><label>Payment Date</label><input type="date" id="imp-pay-date" required></div>
+                    <div><label>USD Amount</label><input type="number" id="imp-pay-fcy" required step="0.01"></div>
+                    <div><label>Spot Rate (₹)</label>
+                        <div style="display:flex; gap:5px;">
+                            <input type="number" id="imp-pay-rate" required step="0.01" style="flex-grow:1;">
+                            <button type="button" class="secondary" title="Fetch Live" onclick="window.fetchImportLiveRate('imp-pay-rate')" style="padding:0 8px;">🔄</button>
+                        </div>
+                    </div>
+                </div>
+                <div style="margin-top:15px; display:flex; justify-content:space-between; align-items:center;">
+                    <div style="font-size:0.85rem; color:var(--text-muted);">Payable Balance: <b id="imp-pay-bal-info" style="color:var(--danger);">$0.00</b></div>
+                    <button type="submit" style="background:#f59e0b;">🏦 Log Payment Realization</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="card" style="margin-top:25px;">
+            <div class="imp-filter-box">
+                <div class="imp-filter-item" style="flex-grow:1;">
+                    <span class="imp-filter-label">SEARCH PAYMENTS</span>
+                    <input type="text" class="imp-filter-input" id="imp-pay-filter-search" oninput="renderImportPaymentLedger()" placeholder="Search by ref or date...">
+                </div>
+            </div>
+            <div style="overflow-x: auto;">
+                <table class="modern-table" style="font-size:0.8rem;">
+                    <thead>
+                        <tr>
+                            <th>Ref & Date</th>
+                            <th>USD Amount</th>
+                            <th>Hedge Used</th>
+                            <th>Rate (₹)</th>
+                            <th>Total INR</th>
+                            <th style="text-align:right;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="imp-pay-ledger-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 5: DIVISION P&L -->
+    <div id="imp-pnl-tab" class="import-container hidden">
+        <div class="grid-4" style="margin-bottom: 25px;">
+            <div class="card" style="border-top: 4px solid var(--primary); text-align: center;">
+                <h4 style="margin:0; font-size:0.8rem; color:var(--text-muted);">GROSS SALES OPS</h4>
+                <div id="imp-pnl-rev" style="font-size:1.8rem; font-weight:800; color:var(--primary); margin-top:5px;">₹0</div>
+            </div>
+            <div class="card" style="border-top: 4px solid var(--danger); text-align: center;">
+                <h4 style="margin:0; font-size:0.8rem; color:var(--text-muted);">TOTAL CIF PURCHASE</h4>
+                <div id="imp-pnl-pur" style="font-size:1.8rem; font-weight:800; color:var(--danger); margin-top:5px;">₹0</div>
+            </div>
+            <div class="card" style="border-top: 4px solid var(--warning); text-align: center;">
+                <h4 style="margin:0; font-size:0.8rem; color:var(--text-muted);">LANDING/LOCO EXPS</h4>
+                <div id="imp-pnl-exp" style="font-size:1.8rem; font-weight:800; color:#b45309; margin-top:5px;">₹0</div>
+            </div>
+            <div class="card" style="border-top: 4px solid var(--success); text-align: center; background: rgba(34,197,94,0.05);">
+                <h4 style="margin:0; font-size:0.8rem; color:var(--text-muted);">NET IMPORT PROFIT</h4>
+                <div id="imp-pnl-net" style="font-size:1.8rem; font-weight:800; color:var(--success); margin-top:5px;">₹0</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3 style="margin-bottom:20px; border-bottom:1px solid var(--border); padding-bottom:15px; display:flex; justify-content:space-between; align-items:center;">
+                📊 Unitized Division P&L Analytics
+                <button class="secondary" style="font-size:0.75rem;" onclick="calculateGlobalImportStats()">🔄 Recalculate ROI</button>
+            </h3>
+            <div class="imp-filter-box" style="margin-bottom:15px;">
+                <div class="imp-filter-item" style="flex-grow:1;">
+                    <span class="imp-filter-label">SEARCH P&L UNIT</span>
+                    <input type="text" class="imp-filter-input" id="imp-pnl-filter-search" oninput="calculateGlobalImportStats()" placeholder="Search by vendor, ref, etc...">
+                </div>
+            </div>
+            <div style="overflow-x: auto;">
+                <table class="modern-table" style="font-size:0.82rem;">
+                    <thead>
+                        <tr>
+                            <th>Shipment Ref</th>
+                            <th>Foreign Vendor</th>
+                            <th>CIF Purchase</th>
+                            <th>Landing Cost</th>
+                            <th>Manual Sale Value (₹)</th>
+                            <th>Net Profit</th>
+                            <th>ROI (%)</th>
+                            <th style="text-align:right;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="imp-partition-tbody"></tbody>
+                </table>
+            </div>
+            <div style="margin-top:20px; font-size:0.8rem; padding:15px; background:rgba(59,130,246,0.05); border-radius:8px; border:1px dashed var(--primary);">
+                <b>💡 Profit Intelligence:</b> Net Profit is calculated as `Sale Value - (CIF Purchase + All Landing Expenses)`. ROI is generated based on total capital deployed per shipment cycle. Use the **Actions** to persist sale values.
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 6: LOGISTICS & CARGO TRACKING -->
+    <div id="imp-logistics-tab" class="import-container hidden">
+        <div class="card" style="border-top: 4px solid #10b981;">
+            <h3>🚛 Physical Cargo & Container Mapping</h3>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 20px;">Link container numbers and cargo details to your master OBL for automated logistics audits.</p>
+            <form id="imp-log-form" onsubmit="window.saveImportContainerDet(event)">
+                <div class="grid-4">
+                    <div style="grid-column: span 2;"><label>Master OBL / Ref</label>
+                        <select id="imp-log-obl" required>
+                             <option value="">-- Select OBL --</option>
+                        </select>
+                    </div>
+                    <div><label>Container No</label><input type="text" id="imp-log-cont-no" placeholder="e.g. MSKU1234567" required></div>
+                    <div><label>Seal Number</label><input type="text" id="imp-log-seal" placeholder="e.g. 789012"></div>
+                    
+                    <div><label>Size / Type</label>
+                        <select id="imp-log-size">
+                            <option value="20ft Dry">20ft Dry</option>
+                            <option value="40ft HQ">40ft HQ</option>
+                            <option value="40ft Dry">40ft Dry</option>
+                            <option value="20ft Reefer">20ft Reefer</option>
+                            <option value="40ft Reefer">40ft Reefer</option>
+                        </select>
+                    </div>
+                    <div><label>Net Weight (MT)</label><input type="number" step="0.001" id="imp-log-nw" required></div>
+                    <div><label>Current Status</label>
+                        <select id="imp-log-status">
+                            <option value="On Vessel">On Vessel</option>
+                            <option value="At Yard">At Yard</option>
+                            <option value="In Transit (Road)">In Transit (Road)</option>
+                            <option value="At Warehouse">At Warehouse</option>
+                        </select>
+                    </div>
+                    <div><label>Gate-In Date</label><input type="date" id="imp-log-gate"></div>
+                </div>
+                <button type="submit" style="margin-top:20px; width:100%; background:#10b981;">🛡️ Save Container Intelligence</button>
+            </form>
+        </div>
+
+        <div class="card" style="margin-top:25px;">
+            <h3 style="margin-bottom:15px; border-bottom:1px solid var(--border); padding-bottom:15px;">Active Container Inventory</h3>
+            <div class="imp-filter-box" style="margin-bottom:15px;">
+                <div class="imp-filter-item" style="flex-grow:1;">
+                    <span class="imp-filter-label">SEARCH CONTAINERS</span>
+                    <input type="text" class="imp-filter-input" id="imp-log-filter-search" oninput="renderImportContainerLedger()" placeholder="Search by container, seal, OBL...">
+                </div>
+            </div>
+            <div style="overflow-x: auto;">
+                <table class="modern-table" style="font-size:0.8rem;">
+                    <thead>
+                        <tr>
+                            <th>Container No</th>
+                            <th>Seal & Type</th>
+                            <th>OBL Mapping</th>
+                            <th>Net Wt (MT)</th>
+                            <th>Status</th>
+                            <th style="text-align:right;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="imp-log-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 7: 360° SHIPMENT DOSSIER -->
+    <div id="imp-dossier-tab" class="import-container hidden">
+        <div class="card" style="margin-bottom: 25px; background: var(--bg); border-top: 5px solid var(--primary);">
+            <label style="font-weight: 800; color: var(--primary); font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;">Shipment Intelligence Center (360° Audit):</label>
+            <div style="display:flex; gap:10px; margin-top:10px;">
+                <select id="imp-dos-select" onchange="window.renderImportDossier360()" style="font-size: 1.1rem; padding: 12px; flex-grow:1; border-radius: 8px; border: 1px solid var(--border); box-shadow: var(--shadow-sm);"></select>
+                <button class="primary" onclick="window.saveImportAudit()" style="padding: 0 20px;">💾 Save Audit</button>
+                <button class="secondary" onclick="window.printImportDossier()" style="padding: 0 20px;">🖨️ Print Final Audit</button>
+            </div>
+        </div>
+
+        <div id="imp-dos-empty" style="text-align: center; padding: 80px 20px; color: var(--text-muted); background: white; border-radius: 12px; border: 1px dashed var(--border);">
+            <div style="font-size: 4rem; margin-bottom: 20px;">🚢</div>
+            <h3 style="margin-bottom:10px; color: var(--text);">Ready for Deep-Link Intelligence</h3>
+            <p>Select a Shipment via OBL or Reference number to generate the multi-tier financial and logistics dossier.</p>
+        </div>
+
+        <div id="imp-dos-content" class="hidden">
+            <div style="display:grid; grid-template-columns: 2fr 1fr; gap:25px;">
+                <!-- LEFT COLUMN: Financials & Logistics -->
+                <div style="display:flex; flex-direction:column; gap:25px;">
+                    
+                    <!-- Header Card -->
+                    <div class="card" style="margin:0; padding:25px; background:white; position:relative; overflow:hidden;">
+                        <div style="position:absolute; right: -20px; top: -20px; font-size: 8rem; color: rgba(59,130,246,0.03); transform: rotate(-15deg); font-weight: 900; pointer-events:none;">IMPORT</div>
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                            <div>
+                                <h2 id="idos-supplier" style="margin:0; color:var(--primary); font-size:1.8rem; font-weight:800;">SUPPLIER NAME</h2>
+                                <p id="idos-ident" style="color:var(--text-muted); margin-top:5px; font-weight:700; letter-spacing:0.5px;">INV #000 | OBL #000 | HUB: XXXX</p>
+                            </div>
+                            <div style="text-align:right;">
+                                <div id="idos-margin-gauge" style="font-size:3rem; font-weight:900; color:var(--success); line-height:1;">0%</div>
+                                <div style="font-size:0.75rem; color:var(--text-muted); font-weight:700; text-transform:uppercase; margin-top:5px;">Net Profit Margin</div>
+                            </div>
+                        </div>
+                        
+                        <div style="display:flex; gap:20px; margin-top:25px; padding-top:20px; border-top:1px solid var(--border);">
+                            <div style="flex:1;">
+                                <label style="font-size:0.7rem; color:var(--text-muted);">CIF VALUE</label>
+                                <div id="idos-cif" style="font-size:1.3rem; font-weight:bold; color:var(--text);">$0,000</div>
+                            </div>
+                            <div style="flex:1;">
+                                <label style="font-size:0.7rem; color:var(--text-muted);">EXCHANGE RATE (BK)</label>
+                                <div id="idos-ex" style="font-size:1.3rem; font-weight:bold; color:var(--text);">₹83.50</div>
+                            </div>
+                            <div style="flex:1;">
+                                <label style="font-size:0.7rem; color:var(--text-muted);">ITEM SPECIFICATION</label>
+                                <div id="idos-product" style="font-size:1.3rem; font-weight:bold; color:var(--primary);">COMMODITY</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Costing Variance & Financial Audit -->
+                    <div class="card" style="margin:0; padding:25px;">
+                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                            <h3 style="margin:0; display:flex; align-items:center; gap:10px;">
+                                <span style="background:rgba(59,130,246,0.1); color:var(--primary); width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:50%; font-size:0.8rem;">1</span>
+                                Variance & Financial Audit
+                            </h3>
+                            <div style="display:flex; gap:10px; align-items:center;">
+                                <label style="font-size:0.75rem; color:var(--text-muted);">Compare with Simulation:</label>
+                                <select id="idos-var-sim-select" onchange="window.renderImportDossier360()" style="font-size:0.75rem; padding:5px; border-radius:4px;"></select>
+                            </div>
+                        </div>
+                        <table class="modern-table">
+                            <thead style="background:var(--bg);">
+                                <tr><th>Cost Element</th><th>Estimated Landing</th><th>Actual Booked</th><th>Variance</th></tr>
+                            </thead>
+                            <tbody id="idos-var-tbody"></tbody>
+                        </table>
+                    </div>
+
+                    <!-- Linked Expenses Detail -->
+                    <div class="card" style="margin:0; padding:25px;">
+                        <h3 style="margin:0 0 20px 0; display:flex; align-items:center; gap:10px;">
+                            <span style="background:rgba(59,130,246,0.1); color:var(--primary); width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:50%; font-size:0.8rem;">2</span>
+                            Detailed Linked Expenses
+                        </h3>
+                        <div style="overflow-x: auto;">
+                            <table class="modern-table" style="font-size:0.75rem;">
+                                <thead style="background:var(--bg);">
+                                    <tr><th>Date</th><th>Category</th><th>Vendor / Party</th><th>Invoice</th><th>Total (₹)</th></tr>
+                                </thead>
+                                <tbody id="idos-exp-tbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Logistics Correlation -->
+                    <div class="card" style="margin:0; padding:25px;">
+                        <h3 style="margin:0 0 20px 0; display:flex; align-items:center; gap:10px;">
+                            <span style="background:rgba(59,130,246,0.1); color:var(--primary); width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:50%; font-size:0.8rem;">3</span>
+                            Linked Logistics & Physical Cargo (Containers)
+                        </h3>
+                        <table class="modern-table" style="font-size:0.8rem;">
+                            <thead style="background:var(--bg);">
+                                <tr><th>Container No</th><th>Size/Seal</th><th>Qty (MT)</th><th>Vessel Name</th><th>Status</th></tr>
+                            </thead>
+                            <tbody id="idos-log-tbody"></tbody>
+                        </table>
+                    </div>
+
+                </div>
+
+                <!-- RIGHT COLUMN: Timeline & Payments -->
+                <div style="display:flex; flex-direction:column; gap:25px;">
+                    
+                    <!-- Financial Health KPIs -->
+                    <div class="card" style="margin:0; background:linear-gradient(135deg, var(--primary), #1e293b); color:white; padding:25px; border:none;">
+                        <h4 style="margin:0 0 15px 0; font-size:0.8rem; text-transform:uppercase; letter-spacing:1px; opacity:0.8;">Shipment P&L Summary</h4>
+                        <div style="display:flex; flex-direction:column; gap:12px;">
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <span>Gross Sales Revenue (Synced):</span>
+                                <div style="display:flex; align-items:center; gap:5px;">
+                                    <b id="idos-sale-inr-display" style="font-size:1.1rem;">₹0</b>
+                                    <input type="hidden" id="idos-sale-manual" value="0">
+                                </div>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; opacity:0.9;"><span>Landed Cost (CIF+All):</span><b id="idos-cost-inr" style="color:#fca5a5;">₹0</b></div>
+                            <div style="display:flex; justify-content:space-between; margin-top:10px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.2); font-size:1.2rem;">
+                                <span>Net Profit:</span><b id="idos-profit-inr">₹0</b>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Milestone Timeline -->
+                    <div class="card" style="margin:0; background:white; padding:25px;">
+                        <h3 style="margin:0 0 20px 0; font-size:1rem;">Logistics Milestones</h3>
+                        <div id="idos-timeline" style="display:flex; flex-direction:column; gap:20px; font-size:0.85rem;"></div>
+                    </div>
+
+                    <!-- Payment Realization -->
+                    <div class="card" style="margin:0; background:#f8fafc; padding:25px;">
+                        <h3 style="margin:0 0 15px 0; font-size:1rem;">Forex Realization (USD Outstandings)</h3>
+                        <table class="modern-table" style="font-size:0.75rem; background:transparent;">
+                            <tbody id="idos-pay-tbody"></tbody>
+                        </table>
+                        <div style="margin-top:20px; padding-top:15px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+                            <span style="font-weight:700; font-size:0.85rem;">Due to Supplier:</span>
+                            <b id="idos-pay-bal" style="color:#ef4444; font-size:1.3rem;">$0.00</b>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

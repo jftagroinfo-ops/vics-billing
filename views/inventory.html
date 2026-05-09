@@ -1,0 +1,483 @@
+<style>
+    /* REPLICATED FILTER STYLING - STRICT SINGLE LINE */
+    .ledger-filter-box {
+        background-color: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 15px 20px;
+        display: flex;
+        justify-content: flex-start;
+        align-items: flex-end;
+        margin-bottom: 20px;
+        flex-wrap: nowrap; 
+        gap: 12px;
+        overflow-x: auto; 
+    }
+    
+    /* ADDED: Responsive fallback for tablets and mobile screens */
+    @media (max-width: 1024px) {
+        .ledger-filter-box {
+            flex-wrap: wrap;
+            overflow-x: visible;
+        }
+        .ledger-filter-item {
+            flex: 1 1 auto;
+        }
+    }
+
+    .ledger-filter-item {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        flex-shrink: 0;
+    }
+    .ledger-filter-label {
+        font-size: 0.75rem;
+        font-weight: 800;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        white-space: nowrap;
+    }
+    .ledger-filter-input {
+        padding: 8px 12px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        font-size: 0.9rem;
+        background: var(--surface);
+        color: var(--text);
+        outline: none;
+        box-sizing: border-box;
+        height: 38px;
+    }
+    .ledger-filter-btn {
+        height: 38px;
+        border: 1px solid var(--border);
+        background: var(--surface);
+        border-radius: 6px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: 0.2s;
+        flex-shrink: 0;
+    }
+    .ledger-filter-btn:hover {
+        background: var(--bg);
+    }
+    .modal-overlay {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(4px);
+        z-index: 10005; display: flex; align-items: center; justify-content: center;
+    }
+</style>
+
+<div id="inventory" class="main-tab">
+    
+    <div class="sticky-sub-nav">
+        <button class="sub-tab-btn active" id="btn-inv-dash" onclick="switchInvTab('dash')">📦 Master Stock & Logistics Sync</button>
+        <button class="sub-tab-btn" id="btn-inv-po" onclick="switchInvTab('po')">📝 Purchase & Sales Contracts</button>
+        <button class="sub-tab-btn" id="btn-inv-loss" onclick="switchInvTab('loss')">📉 Stock Reconciliation (Loss)</button>
+    </div>
+
+    <div class="grid-4" style="margin-bottom: 20px;">
+        <div class="card" style="border-top: 4px solid var(--success); text-align: center;">
+            <h3 style="color: var(--text-muted); margin-bottom: 5px; font-size: 0.9rem;">Total Stock IN</h3>
+            <div id="inv-kpi-in-wt" style="font-size: 1.8rem; font-weight: bold; color: var(--success);">0 MT</div>
+            <div id="inv-kpi-in-bags" style="font-size: 0.85rem; color: var(--text-muted); font-weight:bold;">0 Bags</div>
+        </div>
+        <div class="card" style="border-top: 4px solid var(--danger); text-align: center;">
+            <h3 style="color: var(--text-muted); margin-bottom: 5px; font-size: 0.9rem;">Total Stock OUT</h3>
+            <div id="inv-kpi-out-wt" style="font-size: 1.8rem; font-weight: bold; color: var(--danger);">0 MT</div>
+            <div id="inv-kpi-out-bags" style="font-size: 0.85rem; color: var(--text-muted); font-weight:bold;">0 Bags</div>
+        </div>
+        <div class="card" style="border-top: 4px solid var(--primary); text-align: center; background: rgba(59, 130, 246, 0.05);">
+            <h3 style="color: var(--text-muted); margin-bottom: 5px; font-size: 0.9rem;">Current Balance</h3>
+            <div id="inv-kpi-bal-wt" style="font-size: 1.8rem; font-weight: bold; color: var(--primary);">0 MT</div>
+            <div id="inv-kpi-bal-bags" style="font-size: 0.85rem; color: var(--primary); font-weight:bold;">0 Bags</div>
+        </div>
+        <div class="card" style="border-top: 4px solid #f59e0b; text-align: center; background: rgba(245, 158, 11, 0.05);">
+            <h3 style="color: var(--text-muted); margin-bottom: 5px; font-size: 0.9rem;">Total Stock Loss</h3>
+            <div id="inv-kpi-loss-wt" style="font-size: 1.8rem; font-weight: bold; color: #b45309;">0 MT</div>
+            <div id="inv-kpi-loss-val" style="font-size: 0.85rem; color: #b45309; font-weight:bold;">₹0.00</div>
+        </div>
+    </div>
+
+    <div id="inv-dash-tab" class="inv-container">
+
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 style="margin:0;">📓 Unified Global Stock Ledger</h3>
+                <span style="font-size:0.8rem; color:var(--primary); font-weight:bold;">Auto-Syncs with Logistics Trucks (IN) & Containers (OUT)</span>
+            </div>
+            
+            <div class="ledger-filter-box">
+                <div class="ledger-filter-item">
+                    <span class="ledger-filter-label">FINANCIAL YEAR</span>
+                    <select class="ledger-filter-input" id="filter-fy-inv" onchange="renderInventoryLedger()" style="width: 120px;">
+                        <option value="">All Years</option>
+                    </select>
+                </div>
+                <div class="ledger-filter-item">
+                    <span class="ledger-filter-label">DATE FROM</span>
+                    <input type="date" class="ledger-filter-input" id="filter-date-from-inv" onchange="renderInventoryLedger()" style="width: 130px;">
+                </div>
+                <div class="ledger-filter-item">
+                    <span class="ledger-filter-label">DATE TO</span>
+                    <input type="date" class="ledger-filter-input" id="filter-date-to-inv" onchange="renderInventoryLedger()" style="width: 130px;">
+                </div>
+                <div class="ledger-filter-item" style="flex: 1; min-width: 160px;">
+                    <span class="ledger-filter-label">PO REF</span>
+                    <select class="ledger-filter-input inv-po-select" id="filter-po-inv" onchange="renderInventoryLedger()" style="width: 100%;">
+                        <option value="">All POs</option>
+                    </select>
+                </div>
+                <div class="ledger-filter-item" style="flex: 1.5; min-width: 200px;">
+                    <span class="ledger-filter-label">SEARCH</span>
+                    <input type="text" class="ledger-filter-input" id="filter-search-inv" placeholder="Search item, vehicle, ref..." oninput="renderInventoryLedger()" style="width: 100%;">
+                </div>
+                <div class="ledger-filter-item">
+                    <span class="ledger-filter-label">SHOW DETAILS</span>
+                    <select class="ledger-filter-input" id="filter-limit-inv" onchange="renderInventoryLedger()" style="width: 80px;">
+                        <option value="10" selected>10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                        <option value="all">All</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: 8px; flex-shrink: 0;">
+                    <button type="button" class="ledger-filter-btn" style="color: #ef4444; width: 38px; padding: 0; font-size: 1.2rem;" title="Reset Filters" onclick="resetInvFilters('inv')">✖</button>
+                    <button type="button" class="ledger-filter-btn" style="width: 38px; padding: 0; font-size: 1.2rem;" title="Download CSV" onclick="exportInvFiltered('inv')">📥</button>
+                </div>
+            </div>
+
+            <div style="overflow-x: auto;">
+                <table id="inv-ledger-table" style="font-size: 0.85rem; min-width: 1000px;">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Type</th>
+                            <th>Item / Commodity</th>
+                            <th>Reference (Truck/Cont/PO)</th>
+                            <th>Bags</th>
+                            <th>Weight (MT)</th>
+                            <th>Source</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="inv-po-tab" class="inv-container hidden">
+        
+        <div style="display: flex; justify-content: flex-end; margin-bottom: 15px;">
+            <button type="button" style="background: var(--primary); color: white; border: none; padding: 10px 15px; font-weight: bold; border-radius: 6px; cursor: pointer;" onclick="togglePOCreate()">➕ Create Purchase Order</button>
+        </div>
+
+        <div class="card hidden" id="po-create-section" style="margin-bottom: 20px; border-top: 4px solid var(--primary);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 style="margin: 0;">📝 Create Purchase Order</h3>
+                <button type="button" class="secondary" style="border:none; font-size:1.2rem;" onclick="togglePOCreate()">✕</button>
+            </div>
+            
+            <form id="po-form" onsubmit="createPurchaseOrder(event)">
+                <div class="grid-4" style="gap: 15px;">
+                    <div><label>PO Number</label><input type="text" id="po-no" required placeholder="JFT/DPO/25-26/002"></div>
+                    <div><label>Date</label><input type="date" id="po-date" required></div>
+                    <div><label>REF (e.g. Telephonic)</label><input type="text" id="po-ref" placeholder="Whatsapp / Telephonic"></div>
+                    <div><label>Broker Name</label><input type="text" id="po-broker" placeholder="e.g. RAVI TRADERS (VICKY)"></div>
+
+                    <div style="grid-column: span 2; background: rgba(59, 130, 246, 0.03); padding: 15px; border-radius: 8px; border: 1px solid var(--border);">
+                        <h4 style="margin: 0 0 10px 0; color: var(--primary);">🏢 SELLER DETAILS</h4>
+                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                            <input type="text" id="po-seller-name" placeholder="Seller Company Name" required style="font-weight: bold; padding: 6px; border-radius: 4px; border: 1px solid var(--border);">
+                            <textarea id="po-seller-address" rows="2" placeholder="Full Address" style="padding: 6px; border-radius: 4px; border: 1px solid var(--border);"></textarea>
+                            <div class="grid-2" style="gap:8px;">
+                                <input type="text" id="po-seller-mobile" placeholder="Mobile No." style="padding: 6px; border-radius: 4px; border: 1px solid var(--border);">
+                                <input type="text" id="po-seller-email" placeholder="Email ID" style="padding: 6px; border-radius: 4px; border: 1px solid var(--border);">
+                            </div>
+                            <div class="grid-2" style="gap:8px;">
+                                <input type="text" id="po-seller-fssai" placeholder="FSSAI No." style="padding: 6px; border-radius: 4px; border: 1px solid var(--border);">
+                                <input type="text" id="po-seller-gstin" placeholder="GSTIN" style="padding: 6px; border-radius: 4px; border: 1px solid var(--border);">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="grid-column: span 2; background: rgba(16, 185, 129, 0.03); padding: 15px; border-radius: 8px; border: 1px solid var(--border);">
+                        <h4 style="margin: 0 0 10px 0; color: var(--success);">🏢 BUYER DETAILS (Default: JFT AGRO)</h4>
+                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                            <input type="text" id="po-buyer-name" placeholder="Buyer Company Name (Opt)" style="padding: 6px; border-radius: 4px; border: 1px solid var(--border);">
+                            <textarea id="po-buyer-address" rows="2" placeholder="Buyer Address (Opt)" style="padding: 6px; border-radius: 4px; border: 1px solid var(--border);"></textarea>
+                            <div class="grid-2" style="gap:8px;">
+                                <input type="text" id="po-buyer-mobile" placeholder="Mobile (Opt)" style="padding: 6px; border-radius: 4px; border: 1px solid var(--border);">
+                                <input type="text" id="po-buyer-email" placeholder="Email (Opt)" style="padding: 6px; border-radius: 4px; border: 1px solid var(--border);">
+                            </div>
+                            <div class="grid-2" style="gap:8px;">
+                                <input type="text" id="po-buyer-gstin" placeholder="GSTIN (Opt)" style="padding: 6px; border-radius: 4px; border: 1px solid var(--border);">
+                                <span style="font-size: 0.7rem; color: var(--text-muted);">Leave blank to use profile settings.</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="grid-column: span 2;">
+                        <h4 style="margin: 15px 0 10px 0; color: var(--text);">🏷️ ITEM & PRICING</h4>
+                        <div class="grid-2" style="gap:10px;">
+                            <div><label>Commodity / Item Name</label><input type="text" id="po-item" required placeholder="5% White Rice Silky Sortex"></div>
+                            <div><label>Order Quantity (MT)</label><input type="number" step="0.01" id="po-qty" required></div>
+                            <div><label>Rate Label (e.g. NET 25KG)</label><input type="text" id="po-rate-label" placeholder="NET 25KG / PER MT"></div>
+                            <div><label>Rate per MT (₹)</label><input type="number" step="0.01" id="po-rate" required></div>
+                        </div>
+                    </div>
+
+                    <div style="grid-column: span 2;">
+                        <h4 style="margin: 15px 0 10px 0; color: var(--text);">📋 QUALITY SPECIFICATIONS</h4>
+                        <textarea id="po-specs" rows="4" placeholder="Moisture: 14% Max&#10;Broken: 5% Max&#10;Damaged: 2% Max&#10;Grain Length: 5.9MM Min"></textarea>
+                    </div>
+
+                    <div style="grid-column: span 2;">
+                        <label style="font-weight: bold; color: #ef4444;">💡 Important Note / Payment Condition</label>
+                        <input type="text" id="po-imp-note" placeholder="e.g. 1% discount after unloading at nhava sheva...">
+                    </div>
+
+                    <div style="grid-column: span 2;">
+                        <label style="font-weight: bold;">📜 Terms & Conditions (One per line)</label>
+                        <textarea id="po-terms" rows="6" placeholder="1. Delivery will be at Nhava Sheva Port.&#10;2. The contract is governed by an LUT.&#10;..."></textarea>
+                    </div>
+                </div>
+                <button type="submit" style="margin-top:20px; width:100%; background:var(--primary); color:white; padding:15px; font-weight:bold; cursor:pointer; border:none; border-radius:8px; font-size: 1.1rem; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);">🚀 Save & Generate Purchase Order</button>
+            </form>
+        </div>
+
+        <div class="card" style="margin-top: 20px;">
+            <h3>Purchase Order Ledger (Inward Tracking)</h3>
+            <div class="ledger-filter-box">
+                <div class="ledger-filter-item">
+                    <span class="ledger-filter-label">FINANCIAL YEAR</span>
+                    <select class="ledger-filter-input" id="filter-fy-po" onchange="renderPOTable()" style="width: 120px;">
+                        <option value="">All Years</option>
+                    </select>
+                </div>
+                <div class="ledger-filter-item">
+                    <span class="ledger-filter-label">DATE FROM</span>
+                    <input type="date" class="ledger-filter-input" id="filter-date-from-po" onchange="renderPOTable()" style="width: 130px;">
+                </div>
+                <div class="ledger-filter-item">
+                    <span class="ledger-filter-label">DATE TO</span>
+                    <input type="date" class="ledger-filter-input" id="filter-date-to-po" onchange="renderPOTable()" style="width: 130px;">
+                </div>
+                <div class="ledger-filter-item" style="flex: 1.5; min-width: 200px;">
+                    <span class="ledger-filter-label">SEARCH</span>
+                    <input type="text" class="ledger-filter-input" id="filter-search-po" placeholder="Search PO, Vendor, Item..." oninput="renderPOTable()" style="width: 100%;">
+                </div>
+                <div class="ledger-filter-item">
+                    <span class="ledger-filter-label">SHOW DETAILS</span>
+                    <select class="ledger-filter-input" id="filter-limit-po" onchange="renderPOTable()" style="width: 80px;">
+                        <option value="10" selected>10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                        <option value="all">All</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: 8px; flex-shrink: 0;">
+                    <button type="button" class="ledger-filter-btn" style="color: #ef4444; width: 38px; padding: 0; font-size: 1.2rem;" title="Reset Filters" onclick="resetInvFilters('po')">✖</button>
+                    <button type="button" class="ledger-filter-btn" style="width: 38px; padding: 0; font-size: 1.2rem;" title="Download CSV" onclick="exportInvFiltered('po')">📥</button>
+                </div>
+            </div>
+
+            <div style="overflow-x: auto;">
+                <table id="po-table" style="font-size: 0.85rem; min-width: 1200px;">
+                    <thead>
+                        <tr>
+                            <th>PO Date</th>
+                            <th>PO No</th>
+                            <th>Vendor</th>
+                            <th>Item</th>
+                            <th>Ordered Wt</th>
+                            <th>Received Wt</th>
+                            <th>Balance Wt</th>
+                            <th>Total Value (₹)</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top: 20px; border-top: 4px solid var(--danger);">
+            <h3>Sales Contract Ledger (Outward Tracking)</h3>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 15px;">Automatically tracks generated Sales Contracts against Container Stuffing weight.</p>
+            <div class="ledger-filter-box">
+                <div class="ledger-filter-item">
+                    <span class="ledger-filter-label">FINANCIAL YEAR</span>
+                    <select class="ledger-filter-input" id="filter-fy-sc" onchange="renderSCTable()" style="width: 120px;">
+                        <option value="">All Years</option>
+                    </select>
+                </div>
+                <div class="ledger-filter-item">
+                    <span class="ledger-filter-label">DATE FROM</span>
+                    <input type="date" class="ledger-filter-input" id="filter-date-from-sc" onchange="renderSCTable()" style="width: 130px;">
+                </div>
+                <div class="ledger-filter-item">
+                    <span class="ledger-filter-label">DATE TO</span>
+                    <input type="date" class="ledger-filter-input" id="filter-date-to-sc" onchange="renderSCTable()" style="width: 130px;">
+                </div>
+                <div class="ledger-filter-item" style="flex: 1.5; min-width: 200px;">
+                    <span class="ledger-filter-label">SEARCH</span>
+                    <input type="text" class="ledger-filter-input" id="filter-search-sc" placeholder="Search SC No, Buyer, Item..." oninput="renderSCTable()" style="width: 100%;">
+                </div>
+                <div class="ledger-filter-item">
+                    <span class="ledger-filter-label">SHOW DETAILS</span>
+                    <select class="ledger-filter-input" id="filter-limit-sc" onchange="renderSCTable()" style="width: 80px;">
+                        <option value="10" selected>10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                        <option value="all">All</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: 8px; flex-shrink: 0;">
+                    <button type="button" class="ledger-filter-btn" style="color: #ef4444; width: 38px; padding: 0; font-size: 1.2rem;" title="Reset Filters" onclick="resetInvFilters('sc')">✖</button>
+                    <button type="button" class="ledger-filter-btn" style="width: 38px; padding: 0; font-size: 1.2rem;" title="Download CSV" onclick="exportInvFiltered('sc')">📥</button>
+                </div>
+            </div>
+
+            <div style="overflow-x: auto;">
+                <table id="sc-table" style="font-size: 0.85rem; min-width: 1200px;">
+                    <thead>
+                        <tr>
+                            <th>SC Date</th>
+                            <th>SC No</th>
+                            <th>Buyer</th>
+                            <th>Contract Wt</th>
+                            <th>Shipped Wt (Cont.)</th>
+                            <th>Balance Wt</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="inv-loss-tab" class="inv-container hidden" style="position:relative; z-index:10;">
+        <div class="grid-2">
+            <div class="card" style="position:relative; z-index:11;">
+                <h3 style="margin-bottom: 15px; color: #b45309;">📉 Log Stock Loss / Weight Knock-off</h3>
+                
+                <form id="loss-form" onsubmit="addStockLoss(event)">
+                    <div class="grid-2">
+                        <div><label>Date</label><input type="date" id="loss-date" required></div>
+                        <div><label>Commodity / Item</label><input type="text" id="loss-item" required></div>
+                        <div><label>Weight Lost (MT)</label><input type="number" step="0.001" id="loss-wt" required></div>
+                        <div><label>Bags Lost / Damaged</label><input type="number" id="loss-bags" value="0"></div>
+                        <div><label>Market Rate per MT (₹)</label><input type="number" step="0.01" id="loss-rate" required></div>
+                        <div><label>Reason</label>
+                            <select id="loss-reason" required>
+                                <option value="Moisture Loss">Moisture / Transit Loss</option>
+                                <option value="Spillage">Spillage / Handling</option>
+                                <option value="Quality Reject">Quality Reject</option>
+                                <option value="Warehouse Damage">Warehouse Damage</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        <div style="grid-column: span 2;"><label>Link to PO / Reference</label><select id="loss-po-ref" class="inv-po-select"></select></div>
+                        <div style="grid-column: span 2;"><label>Remarks</label><input type="text" id="loss-remarks"></div>
+                    </div>
+                    
+                    <button type="submit" style="margin-top:15px; width:100%; background: #b45309; color:white; border:none; padding:12px; font-weight:bold; cursor:pointer; border-radius:6px;">Book Stock Loss & Knock-off Balance</button>
+                </form>
+            </div>
+            
+            <div class="card" style="background: rgba(245, 158, 11, 0.05); border:1px solid #fde047;">
+                <h3 style="color:#b45309;">Loss Analytics</h3>
+                <p style="font-size:0.85rem; color:var(--text-muted);">Stock loss directly impacts your bottom line. By logging moisture/transit weight loss here, the master inventory balances are automatically corrected, and the financial value is tracked for auditing.</p>
+                <div style="margin-top:20px; font-size:1.5rem; font-weight:bold; color:#b45309;">Total Value Lost:</div>
+                <div id="loss-analytics-val" style="font-size:3rem; font-weight:bold; color:#be123c;">₹0.00</div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top: 20px;">
+            <h3>Stock Loss Ledger</h3>
+            <div class="ledger-filter-box">
+                <div class="ledger-filter-item">
+                    <span class="ledger-filter-label">FINANCIAL YEAR</span>
+                    <select class="ledger-filter-input" id="filter-fy-loss" onchange="renderLossTable()" style="width: 120px;">
+                        <option value="">All Years</option>
+                    </select>
+                </div>
+                <div class="ledger-filter-item">
+                    <span class="ledger-filter-label">DATE FROM</span>
+                    <input type="date" class="ledger-filter-input" id="filter-date-from-loss" onchange="renderLossTable()" style="width: 130px;">
+                </div>
+                <div class="ledger-filter-item">
+                    <span class="ledger-filter-label">DATE TO</span>
+                    <input type="date" class="ledger-filter-input" id="filter-date-to-loss" onchange="renderLossTable()" style="width: 130px;">
+                </div>
+                <div class="ledger-filter-item" style="flex: 1.5; min-width: 200px;">
+                    <span class="ledger-filter-label">SEARCH</span>
+                    <input type="text" class="ledger-filter-input" id="filter-search-loss" placeholder="Search item, reason..." oninput="renderLossTable()" style="width: 100%;">
+                </div>
+                <div class="ledger-filter-item">
+                    <span class="ledger-filter-label">SHOW DETAILS</span>
+                    <select class="ledger-filter-input" id="filter-limit-loss" onchange="renderLossTable()" style="width: 80px;">
+                        <option value="10" selected>10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                        <option value="all">All</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: 8px; flex-shrink: 0;">
+                    <button type="button" class="ledger-filter-btn" style="color: #ef4444; width: 38px; padding: 0; font-size: 1.2rem;" title="Reset Filters" onclick="resetInvFilters('loss')">✖</button>
+                    <button type="button" class="ledger-filter-btn" style="width: 38px; padding: 0; font-size: 1.2rem;" title="Download CSV" onclick="exportInvFiltered('loss')">📥</button>
+                </div>
+            </div>
+
+            <div style="overflow-x: auto;">
+                <table id="loss-table" style="font-size: 0.85rem; min-width: 1000px;">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Item</th>
+                            <th>Lost Wt (MT)</th>
+                            <th>Lost Bags</th>
+                            <th>Market Rate (₹)</th>
+                            <th>Loss Value (₹)</th>
+                            <th>Reason</th>
+                            <th>Ref</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="link-ref-modal" class="hidden modal-overlay">
+        <div class="card" style="width: 400px; background: var(--surface); padding: 25px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 15px;">
+                <h3 style="margin: 0; color: var(--primary);">🔗 Link Document Reference</h3>
+                <button type="button" class="secondary" style="border:none; padding:5px 10px;" onclick="closeLinkRefModal()">✕</button>
+            </div>
+            <input type="hidden" id="link-tx-id">
+            <input type="hidden" id="link-tx-source">
+            <div style="margin-bottom: 15px;">
+                <label id="link-ref-label" style="font-weight: bold; margin-bottom: 8px; display: block;">Select Target Document</label>
+                <select id="link-ref-select" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border);"></select>
+            </div>
+            <button onclick="saveLinkRef()" style="width: 100%; background: var(--primary);">💾 Link Reference</button>
+        </div>
+    </div>
+
+</div>
+
+

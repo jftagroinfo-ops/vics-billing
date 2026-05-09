@@ -1,0 +1,472 @@
+<style>
+    /* REPLICATED FILTER STYLING - STRICT SINGLE LINE */
+    .ledger-filter-box {
+        background-color: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 15px 20px;
+        display: flex;
+        justify-content: flex-start;
+        align-items: flex-end;
+        margin-bottom: 20px;
+        flex-wrap: nowrap; 
+        gap: 12px;
+        overflow-x: auto; 
+    }
+    .ledger-filter-item {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        flex-shrink: 0;
+    }
+    .ledger-filter-label {
+        font-size: 0.75rem;
+        font-weight: 800;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        white-space: nowrap;
+    }
+    .ledger-filter-input {
+        padding: 8px 12px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        font-size: 0.9rem;
+        background: var(--surface);
+        color: var(--text);
+        outline: none;
+        box-sizing: border-box;
+        height: 38px;
+    }
+    .ledger-filter-btn {
+        height: 38px;
+        border: 1px solid var(--border);
+        background: var(--surface);
+        border-radius: 6px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: 0.2s;
+        flex-shrink: 0;
+    }
+    .ledger-filter-btn:hover {
+        background: var(--bg);
+    }
+    .modal-overlay {
+        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+        background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(4px);
+        z-index: 200000 !important; align-items: center; justify-content: center;
+        display: none;
+    }
+    .receipt-table { width: 100%; font-size: 0.85rem; border-collapse: collapse; }
+    .receipt-table td { padding: 6px 0; border-bottom: 1px dashed var(--border); }
+    .receipt-table td:last-child { text-align: right; font-weight: bold; }
+    .receipt-total { font-size: 1.1rem; color: var(--primary); border-top: 2px dashed #000 !important; padding-top: 10px !important; }
+</style>
+
+<div id="costing" class="main-tab">
+    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px;">
+        <div>
+            <h2 style="margin: 0; color: var(--primary);">Pre-Shipment Costing Simulator</h2>
+            <p style="margin: 5px 0 0 0; color: var(--text-muted);">Calculate optimal FOB/CIF quotes and map targets to 360° Shipment Dossier.</p>
+        </div>
+    </div>
+
+    <div style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 10px; overflow-x: auto;">
+        <button class="sub-tab-btn active" id="btn-cost-calc" onclick="switchCostTab('calc')">🧮 Calculator & History</button>
+        <button class="sub-tab-btn" id="btn-cost-live" onclick="switchCostTab('live')">📢 Live Price List Generator</button>
+    </div>
+
+    <div id="cost-calc-tab">
+        <div class="grid-2" style="align-items: start; gap: 20px; margin-bottom: 20px;">
+            <!-- LEFT: COSTING CALCULATOR -->
+            <div class="card" style="border-top: 4px solid var(--primary); margin: 0;">
+                <h3 style="margin-top: 0; border-bottom: 1px solid var(--border); padding-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+                    <span>🧮</span> Export Costing Calculator
+                </h3>
+                
+                <form id="costing-form" onsubmit="saveCostingProfile(event)">
+                    <input type="hidden" id="cost-id">
+                    
+                    <div class="grid-2" style="margin-bottom: 15px;">
+                        <div>
+                            <label>Quote Given To (Buyer Name)</label>
+                            <input type="text" id="cost-quote-to" placeholder="e.g. ABC Trading LLC" required>
+                        </div>
+                        <div>
+                            <label>Date</label>
+                            <input type="date" id="cost-date" required>
+                        </div>
+                        <div>
+                            <label>Country Name</label>
+                            <input type="text" id="cost-country" placeholder="e.g. UAE" required>
+                        </div>
+                        <div>
+                            <label>Product Name / Commodity</label>
+                            <input type="text" id="cost-product" placeholder="e.g. Basmati Rice" required>
+                        </div>
+                    </div>
+
+                    <div style="background: var(--bg); padding: 15px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 15px;">
+                        <h4 style="margin-top: 0; margin-bottom: 15px; color: var(--primary); display: flex; justify-content: space-between; align-items: center;">
+                            <span>Purchase & Local Operations (INR)</span>
+                            <div style="display: flex; align-items: center; gap: 10px; font-size: 0.85rem;">
+                                <label style="margin: 0; color: var(--text-muted);">Pricing Unit:</label>
+                                <select id="cost-unit" onchange="calculateCosting()" style="margin: 0; padding: 4px 8px; border-color: var(--primary); font-weight: bold; width: auto;">
+                                    <option value="MT">Per MT</option>
+                                    <option value="KG">Per KG</option>
+                                </select>
+                            </div>
+                        </h4>
+                        
+                        <div class="grid-3" style="gap: 10px;">
+                            <div>
+                                <label>Quantity (MT)</label>
+                                <input type="number" step="0.001" id="cost-qty" value="0" oninput="calculateCosting()" required style="border-color: var(--primary);">
+                            </div>
+                            <div>
+                                <label>Purchase Rate (₹)</label>
+                                <input type="number" step="0.01" id="cost-rate-inr" value="0" oninput="calculateCosting()" required>
+                            </div>
+                            <div>
+                                <label>Packing Material (₹)</label>
+                                <input type="number" step="0.01" id="cost-packing" value="0" oninput="calculateCosting()">
+                            </div>
+                            <div>
+                                <label>Fumigation Cost (₹)</label>
+                                <input type="number" step="0.01" id="cost-fumigation" value="0" oninput="calculateCosting()">
+                            </div>
+                            <div>
+                                <label>Surveyor Cost (₹)</label>
+                                <input type="number" step="0.01" id="cost-surveyor" value="0" oninput="calculateCosting()">
+                            </div>
+                            <div>
+                                <label>THC / Port Handling (₹)</label>
+                                <input type="number" step="0.01" id="cost-thc" value="0" oninput="calculateCosting()">
+                            </div>
+                            <div>
+                                <label>CHA Cost (₹)</label>
+                                <input type="number" step="0.01" id="cost-cha" value="0" oninput="calculateCosting()">
+                            </div>
+                            <div style="grid-column: span 2;">
+                                <label>Exchange Rate (USD to INR)</label>
+                                <div style="display:flex; gap:5px;">
+                                    <input type="number" step="0.01" id="cost-forex" value="83.50" oninput="calculateCosting()" required style="width: 100%;">
+                                    <button type="button" class="secondary" title="Fetch Live Rate with Bank Buffer" onclick="fetchLiveExchangeRate()" style="padding: 0 10px; min-width: 80px;">🔄 Live</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="background: var(--bg); padding: 15px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 15px;">
+                        <h4 style="margin-top: 0; margin-bottom: 10px; color: var(--primary);">International Freight & Margins (USD)</h4>
+                        <div class="grid-2" style="gap: 10px; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px dashed var(--border);">
+                            <div>
+                                <label style="font-size: 0.75rem; color: var(--text-muted);">Full Container Cost (USD)</label>
+                                <input type="number" step="0.01" id="cost-cont-freight" value="0" oninput="calculateCosting()">
+                            </div>
+                            <div>
+                                <label style="font-size: 0.75rem; color: var(--text-muted);">MT per Container</label>
+                                <input type="number" step="0.01" id="cost-cont-mt" value="27" oninput="calculateCosting()">
+                            </div>
+                        </div>
+                        <div class="grid-3" style="gap: 10px;">
+                            <div>
+                                <label style="color: var(--primary); font-weight: bold;">Ocean Freight / MT ($)</label>
+                                <input type="number" step="0.01" id="cost-freight-usd" value="0" readonly style="background: rgba(99, 102, 241, 0.05);">
+                            </div>
+                            <div>
+                                <label>Other Documents ($)</label>
+                                <input type="number" step="0.01" id="cost-other-doc" value="0" oninput="calculateCosting()">
+                            </div>
+                            <div>
+                                <label style="color: var(--success); font-weight: bold;">Expected Margin ($)</label>
+                                <input type="number" step="0.01" id="cost-margin-usd" value="0" oninput="calculateCosting()" style="border: 1px solid var(--success);">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="background:var(--bg); padding:20px; border-radius:12px; margin-top:15px; border:1px solid var(--border); box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:12px; color: var(--text-muted);">
+                            <strong>Total Operational Cost (INR):</strong>
+                            <span id="display-total-inr" style="font-family:monospace; font-size:1.1rem; color: var(--text);">₹ 0.00</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:15px; color: var(--text-muted);">
+                            <strong>FOB Cost Converted (USD per MT):</strong>
+                            <span id="display-fob-usd" style="font-family:monospace; font-size:1.1rem; color: var(--text);">$ 0.00</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; color:var(--success); font-size:1.4rem; border-top:2px dashed var(--border); padding-top:15px; margin-top:5px; align-items: center;">
+                            <strong>FINAL QUOTE (Per MT CIF):</strong>
+                            <strong id="display-quote-usd" style="font-family:monospace; background: rgba(16, 185, 129, 0.1); padding: 4px 12px; border-radius: 6px;">$ 0.00</strong>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 15px; display: flex; gap: 10px;">
+                        <button type="submit" style="flex: 2; font-size: 1.05rem; padding: 12px;">💾 Save Quotation</button>
+                        <button type="button" class="secondary" style="flex: 1;" onclick="resetCostingForm()">Clear</button>
+                        <button type="button" class="secondary" style="flex: 1.5; background: rgba(14, 165, 233, 0.05); color:var(--primary); font-weight:bold; border-color:#bae6fd;" onclick="window.showCostingReceipt()">🧾 View Receipt</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- RIGHT: REVERSE COSTING -->
+            <div class="card" style="border-top: 4px solid var(--warning); margin: 0;">
+                <h3 style="margin-top: 0; border-bottom: 1px solid var(--border); padding-bottom: 10px;">Reverse Costing (Find Max Buy Price)</h3>
+                <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:15px;">If the buyer dictates the target price, use this to reverse-calculate your maximum allowable Raw Material purchase limit.</p>
+                
+                <div class="grid-2" style="gap: 15px; margin-bottom: 15px;">
+                    <div><label>Target Price ($)</label><input type="number" step="0.01" id="rcost-target" value="500" oninput="calcReversePrice()" style="font-weight:bold; color:var(--primary);"></div>
+                    <div>
+                        <label>Pricing Type</label>
+                        <select id="rcost-type" onchange="calcReversePrice()">
+                            <option value="FOB">FOB</option>
+                            <option value="CIF">CIF</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Pricing Unit</label>
+                        <select id="rcost-unit" onchange="calcReversePrice()">
+                            <option value="MT">Per MT</option>
+                            <option value="KG">Per KG</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Forex Rate (₹)</label>
+                        <div style="display:flex; gap:5px;">
+                            <input type="number" step="0.01" id="rcost-forex" value="83.50" oninput="calcReversePrice()" style="width:100%;">
+                            <button type="button" class="secondary" onclick="fetchLiveExchangeRate()" title="Fetch Live Rate" style="padding: 0 10px;">🔄</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="grid-2" style="gap: 15px; margin-bottom: 15px; padding: 15px; background: var(--bg); border-radius: 8px;">
+                    <div><label>Ocean Freight/MT ($)</label><input type="number" step="0.01" id="rcost-freight" value="0" oninput="calcReversePrice()"></div>
+                    <div><label>Expected Margin ($)</label><input type="number" step="0.01" id="rcost-margin" value="0" oninput="calcReversePrice()"></div>
+                    <div><label>Other Documents ($)</label><input type="number" step="0.01" id="rcost-docs" value="0" oninput="calcReversePrice()"></div>
+                    <div><label>Local Ops (₹ / Unit)</label><input type="number" step="0.01" id="rcost-local" value="0" oninput="calcReversePrice()"></div>
+                </div>
+                
+                <div style="background: rgba(245, 158, 11, 0.05); padding: 20px; border-radius: 8px; border: 1px dashed #f59e0b; margin-top: 15px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-direction: column; text-align: center; gap: 10px;">
+                        <span style="font-weight: bold; color: #b45309; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 1px;">Max Allowable Purchase Price:</span>
+                        <span id="rcost-max-rm" style="font-size: 2.2rem; font-weight: 900; color: #9a3412; font-family: monospace;">₹0.00 / MT</span>
+                    </div>
+                    <button type="button" class="secondary" style="margin-top: 15px; width: 100%; font-weight: bold; color: #b45309; border-color: #fde68a; background: var(--surface);" onclick="window.showReverseReceipt()">🧾 View Reverse Calculation Steps</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- FULL WIDTH: QUOTATION HISTORY -->
+        <div class="card" style="margin-top: 0;">
+            <h3 style="margin-top: 0; border-bottom: 1px solid var(--border); padding-bottom: 10px;">Quotation History</h3>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 20px;">Saved quotations automatically sync with the <strong>360° Shipment Dossier</strong> in the Finance module for Target vs Actual Variance Analysis.</p>
+            
+            <div class="ledger-filter-box" style="padding: 10px 15px; margin-bottom: 15px;">
+                <div class="ledger-filter-item">
+                    <span class="ledger-filter-label">FINANCIAL YEAR</span>
+                    <select class="ledger-filter-input" id="filter-fy-cost" onchange="renderCostingTable()">
+                        <option value="">All Years</option>
+                    </select>
+                </div>
+                <div class="ledger-filter-item">
+                    <span class="ledger-filter-label">STATUS</span>
+                    <select class="ledger-filter-input" id="filter-status-cost" onchange="renderCostingTable()" style="width: 100px;">
+                        <option value="">All</option>
+                        <option value="Accepted">Accepted</option>
+                        <option value="Pending">Pending</option>
+                    </select>
+                </div>
+                <div class="ledger-filter-item" style="flex: 1;">
+                    <span class="ledger-filter-label">SEARCH</span>
+                    <input type="text" class="ledger-filter-input" id="filter-search-cost" placeholder="Search Buyer, Product..." oninput="renderCostingTable()" style="width: 100%;">
+                </div>
+                <div class="ledger-filter-item">
+                    <span class="ledger-filter-label">SHOW DETAILS</span>
+                    <select class="ledger-filter-input" id="filter-limit-cost" onchange="renderCostingTable()" style="width: 80px;">
+                        <option value="10">10</option>
+                        <option value="25" selected>25</option>
+                        <option value="50">50</option>
+                        <option value="all">All</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: 8px; flex-shrink: 0;">
+                    <button type="button" class="ledger-filter-btn" style="color: #ef4444; width: 38px; padding: 0;" title="Reset" onclick="resetCostFilters()">✖</button>
+                </div>
+            </div>
+
+            <div style="overflow-x: auto;">
+                <table id="costing-table" style="font-size: 0.85rem; width: 100%;">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Quote To / Product</th>
+                            <th>FOB / CIF (USD)</th>
+                            <th style="text-align: right;">Status & Action</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="cost-live-tab" style="display: none;">
+        <div class="grid-2">
+            <div class="card" style="border-top: 4px solid #10b981;">
+                <h3 style="margin-top: 0; border-bottom: 1px solid var(--border); padding-bottom: 10px;">➕ Add Item to Price List</h3>
+                
+                <div class="grid-2" style="margin-bottom: 15px;">
+                    <div>
+                        <label style="font-weight: bold; color: var(--primary);">Source Data From:</label>
+                        <select id="live-source-type" onchange="toggleLiveSource()" style="margin-bottom: 0; border-color: var(--primary);">
+                            <option value="history">Quotation History</option>
+                            <option value="manual">Manual Entry</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; color: var(--primary);">Poster Date:</label>
+                        <input type="date" id="live-poster-date-input" onchange="updatePosterDate()" style="margin-bottom: 0; border-color: var(--primary);">
+                    </div>
+                </div>
+
+                <form id="live-form-history" onsubmit="addLiveItemFromHistory(event)" style="background: var(--bg); padding: 15px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 15px;">
+                    <div style="margin-bottom: 15px;">
+                        <label>Select Saved Quotation</label>
+                        <select id="live-history-select" required onchange="updateLiveHistoryPreview()">
+                            <option value="">-- No Quotations Found --</option>
+                        </select>
+                    </div>
+                    <div class="grid-2" style="gap: 10px;">
+                        <div>
+                            <label>Publish Terms</label>
+                            <select id="live-history-terms" required onchange="updateLiveHistoryPreview()">
+                                <option value="FOB">FOB (Indian Port)</option>
+                                <option value="CIF">CIF (Destination Port)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label>Port Name Display</label>
+                            <input type="text" id="live-history-port" placeholder="e.g. Nhava Sheva or Jebel Ali" required>
+                        </div>
+                    </div>
+                    <div style="margin-top: 15px; padding: 10px; background: rgba(14, 165, 233, 0.05); border-radius: 6px; border: 1px dashed #38bdf8; font-size: 0.85rem;">
+                        <strong>Preview:</strong> <span id="live-history-preview" style="color: var(--primary); font-weight: bold;">Select a quote to preview price</span>
+                    </div>
+                    <button type="submit" style="width: 100%; margin-top: 15px; background: #10b981;">➕ Add to List</button>
+                </form>
+
+                <form id="live-form-manual" onsubmit="addLiveItemManual(event)" style="display: none; background: var(--bg); padding: 15px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 15px;">
+                    <div style="margin-bottom: 15px;">
+                        <label>Product Name</label>
+                        <input type="text" id="live-manual-product" placeholder="e.g. Sona Masoori Rice" required>
+                    </div>
+                    <div class="grid-3" style="gap: 10px;">
+                        <div>
+                            <label>Price (USD)</label>
+                            <input type="number" step="0.01" id="live-manual-price" placeholder="500" required>
+                        </div>
+                        <div>
+                            <label>Term</label>
+                            <select id="live-manual-term" required>
+                                <option value="FOB">FOB</option>
+                                <option value="CIF">CIF</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label>Port Name</label>
+                            <input type="text" id="live-manual-port" placeholder="e.g. Mundra" required>
+                        </div>
+                    </div>
+                    <button type="submit" style="width: 100%; margin-top: 15px; background: #10b981;">➕ Add to List</button>
+                </form>
+
+                <hr>
+                <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 15px;">
+                    <button type="button" onclick="shareLiveListWhatsApp()" style="background: #25D366; color: white; font-weight: bold; border: none; font-size: 1.1rem; padding: 12px;">📱 Share on WhatsApp</button>
+                    <button type="button" onclick="downloadLiveListImage()" class="secondary" style="border-color: var(--primary); color: var(--primary); font-weight: bold;">🖨️ Export as Image</button>
+                    <button type="button" onclick="clearLiveList()" class="danger" style="background: transparent;">🗑️ Clear List</button>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: center; align-items: flex-start;">
+                <div id="price-list-poster" style="background: linear-gradient(135deg, #1e3a8a, #0f172a); padding: 30px; border-radius: 12px; color: white; font-family: 'Helvetica Neue', Arial, sans-serif; box-shadow: 0 15px 30px rgba(0,0,0,0.3); width: 100%; max-width: 500px; position: relative; overflow: hidden;">
+                    
+                    <div style="position: absolute; top: -50px; right: -50px; width: 150px; height: 150px; background: rgba(255,255,255,0.05); border-radius: 50%;"></div>
+
+                    <div style="text-align: center; border-bottom: 2px dashed rgba(255,255,255,0.2); padding-bottom: 15px; margin-bottom: 20px; position: relative; z-index: 2;">
+                        <h2 style="margin: 0; color: #fbbf24; font-size: 24px; text-transform: uppercase; letter-spacing: 2px;">JFT AGRO OVERSEAS</h2>
+                        <div style="font-size: 14px; margin-top: 5px; color: var(--border); font-weight: bold; letter-spacing: 1px;">⚡ LIVE EXPORT OFFERS</div>
+                        <div style="font-size: 12px; margin-top: 5px; color: #94a3b8;" id="live-poster-date">Date: </div>
+                    </div>
+                    
+                    <div id="live-poster-items" style="display: flex; flex-direction: column; gap: 15px; position: relative; z-index: 2; min-height: 100px;">
+                        <div style="text-align: center; color: rgba(255,255,255,0.5); font-style: italic; padding: 20px 0;">No items added yet...</div>
+                    </div>
+                    
+                    <div style="margin-top: 25px; text-align: center; font-size: 11px; color: #94a3b8; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px; position: relative; z-index: 2;">
+                        Contact us directly on WhatsApp for specifications and booking.<br>
+                        <span style="color: #fbbf24;">* All prices are subject to final confirmation.</span><br>
+                        <span style="color: #fbbf24; font-weight: bold;">* PRICE VALIDITY IS FOR 24HRS.</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="costing-receipt-modal" class="modal-overlay" style="display: none;">
+        <div class="card" style="width: 400px; background: var(--surface); padding: 25px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px dashed var(--border); padding-bottom: 10px; margin-bottom: 15px;">
+                <h3 style="margin: 0; color: var(--text);">🧾 FORWARD COSTING</h3>
+                <button type="button" class="secondary" style="border:none; padding:5px 10px;" onclick="window.closeCostingReceipt()">✕</button>
+            </div>
+            
+            <table class="receipt-table">
+                <tr><td>Purchase Price</td><td id="rec-pur">₹0.00</td></tr>
+                <tr><td>Total Local Operations</td><td id="rec-loc">₹0.00</td></tr>
+                <tr><td style="font-weight:bold;">Total Operational Base</td><td id="rec-tot-inr" style="font-weight:bold; color:var(--danger);">₹0.00</td></tr>
+                <tr><td colspan="2" style="border:none; height:10px;"></td></tr>
+                
+                <tr><td style="color:var(--text-muted); font-size:0.75rem;">Scale Conversion to MT Base</td><td id="rec-scale-mt" style="color:var(--text-muted); font-size:0.75rem;">-</td></tr>
+                <tr><td>Converted Base (USD/MT)</td><td id="rec-base-usd">$0.00</td></tr>
+                <tr><td>Other Documents (USD)</td><td id="rec-docs">$0.00</td></tr>
+                <tr><td>Margin (USD)</td><td id="rec-margin">$0.00</td></tr>
+                <tr><td style="font-weight:bold;">Calculated FOB (USD/MT)</td><td id="rec-fob" style="font-weight:bold; color:var(--primary);">$0.00</td></tr>
+                <tr><td colspan="2" style="border:none; height:10px;"></td></tr>
+
+                <tr><td>Ocean Freight (USD/MT)</td><td id="rec-frt">$0.00</td></tr>
+                <tr><td class="receipt-total">FINAL CIF QUOTE</td><td id="rec-cif" class="receipt-total" style="color:var(--success);">$0.00</td></tr>
+            </table>
+        </div>
+    </div>
+
+    <div id="rcosting-receipt-modal" class="modal-overlay" style="display: none;">
+        <div class="card" style="width: 400px; background: var(--surface); padding: 25px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px dashed var(--border); padding-bottom: 10px; margin-bottom: 15px;">
+                <h3 style="margin: 0; color: #b45309;">🧾 REVERSE COSTING</h3>
+                <button type="button" class="secondary" style="border:none; padding:5px 10px;" onclick="window.closeReverseReceipt()">✕</button>
+            </div>
+            
+            <table class="receipt-table">
+                <tr><td>Target Price (Given)</td><td id="rrec-target">$0.00</td></tr>
+                <tr><td>Less: Ocean Freight</td><td id="rrec-frt" style="color:var(--danger);">-$0.00</td></tr>
+                <tr><td style="font-weight:bold;">Target FOB (USD/MT)</td><td id="rrec-fob" style="font-weight:bold;">$0.00</td></tr>
+                <tr><td colspan="2" style="border:none; height:10px;"></td></tr>
+                
+                <tr><td>Less: Expected Margin</td><td id="rrec-margin" style="color:var(--danger);">-$0.00</td></tr>
+                <tr><td>Less: Other Docs</td><td id="rrec-docs" style="color:var(--danger);">-$0.00</td></tr>
+                <tr><td style="font-weight:bold;">Base Allowable (USD/MT)</td><td id="rrec-base-usd" style="font-weight:bold; color:var(--primary);">$0.00</td></tr>
+                <tr><td colspan="2" style="border:none; height:10px;"></td></tr>
+
+                <tr><td>Converted to INR/MT</td><td id="rrec-base-inr">₹0.00</td></tr>
+                <tr><td style="color:var(--text-muted); font-size:0.75rem;">Scale Conversion to Unit Base</td><td id="rrec-scale-unit" style="color:var(--text-muted); font-size:0.75rem;">-</td></tr>
+                <tr><td>Less: Local Ops / Unit</td><td id="rrec-loc" style="color:var(--danger);">-₹0.00</td></tr>
+                <tr><td class="receipt-total" style="color:#b45309;">MAX BUYING PRICE</td><td id="rrec-max" class="receipt-total" style="color:#b45309;">₹0.00</td></tr>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+
+

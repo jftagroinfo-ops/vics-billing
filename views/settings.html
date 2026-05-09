@@ -1,0 +1,980 @@
+<style>
+    .settings-bg {
+        padding: 20px;
+        background: var(--bg);
+        min-height: auto;
+    }
+    .settings-nav-bar {
+        display: flex; gap: 10px; margin-bottom: 25px; border-bottom: 2px solid var(--border); padding-bottom: 15px; 
+        overflow-x: auto; scroll-behavior: smooth; -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+    }
+    .settings-nav-bar::-webkit-scrollbar { height: 6px; }
+    .settings-nav-bar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+    
+    .settings-nav-btn {
+        padding: 10px 20px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+        color: var(--text-muted); font-weight: bold; cursor: pointer; white-space: nowrap; transition: all 0.2s;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    }
+    .settings-nav-btn:hover { background: var(--bg); color: var(--primary); border-color: #94a3b8; }
+    .settings-nav-btn.active {
+        background: var(--primary); color: white; border-color: var(--primary);
+        box-shadow: 0 4px 10px rgba(var(--primary-rgb), 0.3);
+    }
+    
+    .settings-card {
+        background: var(--surface); border-radius: 12px; border: 1px solid var(--border); padding: 25px;
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); margin-bottom: 20px;
+    }
+    .settings-card-header {
+        border-bottom: 1px solid var(--border); padding-bottom: 15px; margin-bottom: 20px;
+    }
+    .settings-card-header h3 { margin: 0; color: #0f172a; font-size: 1.25rem; display: flex; align-items: center; gap: 10px; }
+    .settings-card-header p { margin: 5px 0 0 0; color: #64748b; font-size: 0.85rem; }
+
+    .form-group { margin-bottom: 15px; }
+    .form-group label { display: block; font-size: 0.8rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.5px; }
+    .form-group input, .form-group select { 
+        width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.95rem; background: var(--surface); transition: border-color 0.2s;
+    }
+    .form-group input:focus, .form-group select:focus { border-color: var(--primary); outline: none; background: var(--surface); box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1); }
+
+    .img-upload-box {
+        border: 2px dashed var(--border); border-radius: 8px; padding: 20px; text-align: center; background: var(--bg); transition: all 0.2s; position: relative;
+    }
+    .img-upload-box:hover { border-color: var(--primary); background: rgba(59, 130, 246, 0.05); }
+    .img-preview {
+        width: 100%; height: 120px; background-size: contain; background-position: center; background-repeat: no-repeat; margin-top: 15px; border-radius: 6px; background-color: var(--surface); border: 1px solid var(--border);
+    }
+    .img-preview.transparent-checkered {
+        background-color: #ffffff;
+        background-image: linear-gradient(45deg, #f0f0f0 25%, transparent 25%), linear-gradient(-45deg, #f0f0f0 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #f0f0f0 75%), linear-gradient(-45deg, transparent 75%, #f0f0f0 75%);
+        background-size: 20px 20px;
+        background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+    }
+
+    .modal-overlay {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(4px);
+        z-index: 10005; display: flex; align-items: center; justify-content: center;
+    }
+    .hidden { display: none !important; }
+</style>
+
+<div id="settings" class="main-tab">
+    <div class="settings-bg" style="padding: 0;">
+
+        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 25px;">
+            <div>
+                <h2 style="margin: 0; color: var(--primary); font-size: 2rem; font-weight: 800;">Enterprise Settings</h2>
+                <p style="margin: 5px 0 0 0; color: var(--text-muted); font-size: 0.9rem;">Manage company profile, security, and cloud sync parameters.</p>
+            </div>
+            <div id="settings-sync-status" style="padding: 6px 12px; background: rgba(34, 197, 94, 0.1); color: #166534; border: 1px solid #bbf7d0; border-radius: 20px; font-size: 0.8rem; font-weight: bold; display: flex; align-items: center; gap: 6px;">
+                <span style="display: inline-block; width: 8px; height: 8px; background: #16a34a; border-radius: 50%; box-shadow: 0 0 5px #16a34a;"></span> Cloud Synced
+            </div>
+        </div>
+        
+        <div class="settings-nav-bar sticky-sub-nav">
+            <button class="settings-nav-btn active" id="set-tab-btn-general" onclick="switchSettingsTab('general')">🏢 Company Profile</button>
+            <button class="settings-nav-btn" id="set-tab-btn-bank" onclick="switchSettingsTab('bank')">🏦 Bank Details</button>
+            <button class="settings-nav-btn" id="set-tab-btn-users" onclick="switchSettingsTab('users')" style="display:none;">👥 Users & Roles</button>
+            <button class="settings-nav-btn" id="set-tab-btn-print" onclick="switchSettingsTab('print')" style="display:none;">🖨️ PDF Branding Engine</button>
+            <button class="settings-nav-btn" id="set-tab-btn-updates" onclick="switchSettingsTab('updates')" style="display:none;">🚀 Maintenance & Updates</button>
+            <button class="settings-nav-btn" id="set-tab-btn-storage" onclick="switchSettingsTab('storage')" style="display:none;">☁️ Cloud & Data Export</button>
+            <button class="settings-nav-btn" id="set-tab-btn-ai" onclick="switchSettingsTab('ai')">🤖 Advanced AI Engine</button>
+            <button class="settings-nav-btn" id="set-tab-btn-api" onclick="switchSettingsTab('api')">🔗 API & Connectivity</button>
+            <button class="settings-nav-btn" id="set-tab-btn-adv-storage" onclick="switchSettingsTab('adv-storage')">📊 Advance Storage</button>
+            <button class="settings-nav-btn" id="set-tab-btn-builder" onclick="switchSettingsTab('builder')" style="display:none;">🛠️ System Builder</button>
+            <button class="settings-nav-btn" id="set-tab-btn-audit" onclick="switchSettingsTab('audit')">🛡️ Audit Logs</button>
+            <button class="settings-nav-btn" id="set-tab-btn-danger" onclick="switchSettingsTab('danger')">🚨 Danger Zone</button>
+        </div>
+
+        <div id="set-general-tab" class="settings-panel">
+            <div class="grid-2">
+                <div class="settings-card" style="border-top: 4px solid var(--primary);">
+                    <div class="settings-card-header">
+                        <h3>🏢 Master Company Profile</h3>
+                        <p>This information appears on your invoices, POs, and official documents.</p>
+                    </div>
+                    
+                    <form onsubmit="saveMasterProfile(event)">
+                        <div class="grid-2">
+                            <div class="form-group" style="grid-column: span 2;">
+                                <label>Registered Company Name</label>
+                                <input type="text" id="prof-comp-name" required placeholder="e.g. JFT Agro Overseas LLP">
+                            </div>
+                            <div class="form-group">
+                                <label>Tax ID / GSTIN</label>
+                                <input type="text" id="prof-gstin" placeholder="e.g. 27AAAAA0000A1Z5">
+                            </div>
+                            <div class="form-group">
+                                <label>IEC Code</label>
+                                <input type="text" id="prof-iec" placeholder="e.g. 0312345678">
+                            </div>
+                            <div class="form-group" style="grid-column: span 2;">
+                                <label>Primary Address</label>
+                                <input type="text" id="prof-address" placeholder="Building, Street, City, Pincode...">
+                            </div>
+                            <div class="form-group">
+                                <label>Official Email</label>
+                                <input type="email" id="prof-email" placeholder="contact@company.com">
+                            </div>
+                            <div class="form-group">
+                                <label>Contact Phone</label>
+                                <input type="text" id="prof-phone" placeholder="+91 98765 43210">
+                            </div>
+                            <div class="form-group" style="grid-column: span 2;">
+                                <label>LUT Number (Export under Bond)</label>
+                                <input type="text" id="prof-lut" placeholder="LUT Number for current FY">
+                            </div>
+                        </div>
+                        <button type="submit" style="width: 100%; margin-top: 10px; font-size: 1.05rem; padding: 12px; background: var(--primary);">💾 Save Company Profile</button>
+                    </form>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 20px;">
+                    <div class="settings-card" style="border-top: 4px solid var(--info); margin: 0;">
+                        <div class="settings-card-header">
+                            <h3>✨ Branding Assets</h3>
+                            <p>Upload high-quality images. Click Save to apply changes permanently.</p>
+                        </div>
+                        
+                        <div style="margin-bottom: 20px;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
+                                <label style="font-size: 0.8rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; margin:0;">Full A4 Letterhead Background</label>
+                                <button type="button" class="danger" style="padding: 2px 8px; font-size: 0.7rem;" onclick="removeLetterhead()">🗑️ Remove</button>
+                            </div>
+                            <div class="img-upload-box">
+                                <input type="file" accept="image/*" onchange="previewLetterhead(event)" style="position:absolute; top:0; left:0; width:100%; height:100%; opacity:0; cursor:pointer;">
+                                <div style="color: var(--primary); font-weight: bold;">📁 Click or Drag to Upload</div>
+                                <div id="prof-letterhead-preview" class="img-preview"></div>
+                            </div>
+                        </div>
+
+                        <div style="margin-bottom: 20px;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
+                                <label style="font-size: 0.8rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; margin:0;">Digital Signature</label>
+                                <button type="button" class="danger" style="padding: 2px 8px; font-size: 0.7rem;" onclick="removeSignature()">🗑️ Remove</button>
+                            </div>
+                            <div class="img-upload-box">
+                                <input type="file" accept="image/png, image/jpeg, image/jpg" onchange="previewSignature(event)" style="position:absolute; top:0; left:0; width:100%; height:100%; opacity:0; cursor:pointer;">
+                                <div style="color: var(--primary); font-weight: bold;">📁 Click or Drag to Upload Signature</div>
+                                <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 4px;">Supports high-quality .PNG and .JPEG formats</div>
+                                <div id="prof-signature-preview" class="img-preview transparent-checkered" style="height: 80px; background-size: contain;"></div>
+                            </div>
+                        </div>
+                        <button type="button" onclick="saveBrandingAssets()" style="width:100%; background:var(--info); color:white; padding:12px; border:none; border-radius:6px; font-weight:bold; font-size:1.05rem; cursor:pointer; box-shadow: 0 4px 6px rgba(56, 189, 248, 0.3);">💾 Save Branding Assets</button>
+                    </div>
+
+                    <div class="settings-card" style="margin: 0; background: rgba(34, 197, 94, 0.05); border-color: #bbf7d0;">
+                        <h3 style="margin-top: 0; color: #166534; font-size: 1.1rem;">My Personal Account</h3>
+                        <div style="display: flex; align-items: center; gap: 15px; margin: 15px 0;">
+                            <div id="my-profile-avatar" style="width: 45px; height: 45px; background: #166534; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: bold;">U</div>
+                            <div>
+                                <div id="my-profile-username" style="font-weight: bold; font-size: 1.1rem; color: #14532d;">User</div>
+                                <div id="my-profile-role" style="color: #16a34a; font-size: 0.8rem; text-transform: uppercase; font-weight: bold;">Role</div>
+                            </div>
+                        </div>
+                        <form onsubmit="updatePersonalPassword(event)" style="display: flex; flex-direction: column; gap: 10px;">
+                            <input type="password" id="my-profile-new-pass" placeholder="New Password" required style="padding: 8px; border: 1px solid #bbf7d0; border-radius: 4px;">
+                            <input type="password" id="my-profile-conf-pass" placeholder="Confirm Password" required style="padding: 8px; border: 1px solid #bbf7d0; border-radius: 4px;">
+                            <button type="submit" style="background: #166534; color: white; padding: 8px; border-radius: 4px; border: none; font-weight: bold; cursor: pointer;">Update Password</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="set-updates-tab" class="settings-panel hidden">
+            <div class="settings-card" style="border-top: 4px solid var(--primary);">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <h3 style="margin:0; font-size:1.5rem;">🚀 Maintenance & Update Center</h3>
+                        <p style="color:var(--text-muted); margin-top:5px;">Check for software patches, security updates, and performance optimizations.</p>
+                    </div>
+                    <div style="text-align:right;">
+                        <div id="current-version-badge" style="background:var(--primary); color:white; padding:5px 15px; border-radius:30px; font-weight:800; font-size:0.9rem;">VERSION v8.3.1</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="settings-card" style="display:flex; flex-direction:column; justify-content:space-between;">
+                    <div>
+                        <h3>🔍 Software Pulse Check</h3>
+                        <div id="update-status-panel" style="padding: 20px; text-align:center; background: rgba(59, 130, 246, 0.05); border-radius:12px; margin-top:15px;">
+                            <div id="update-status-icon" style="font-size:3rem; margin-bottom:10px;">✅</div>
+                            <div id="update-status-text" style="font-weight:700; font-size:1.1rem; color:var(--text);">System is Up to Date</div>
+                            <p id="update-last-checked" style="color:var(--text-muted); font-size:0.8rem; margin-top:5px;">Last checked: Just now</p>
+                        </div>
+                    </div>
+                    <button class="secondary" style="margin-top:20px; width:100%; border:1px solid var(--primary);" onclick="if(typeof checkSystemUpdates === 'function') checkSystemUpdates(true)">Check for New Releases</button>
+                </div>
+
+                <div class="settings-card admin-only" style="display:none;">
+                    <h3>🛠️ Force Update Deployment (Admin)</h3>
+                    <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:15px;">Upload a new .exe binary or source bundle to trigger updates for all terminal users.</p>
+                    <div style="border:2px dashed var(--border); border-radius:12px; padding:30px; text-align:center; cursor:pointer;" onclick="document.getElementById('update-file-input').click()">
+                        <div style="font-size:2.5rem; margin-bottom:10px;">📤</div>
+                        <div style="font-weight:700;">Drag & Drop .exe or Click to Upload</div>
+                        <p style="font-size:0.75rem; color:var(--text-muted);">Max file size: 50MB (.exe, .app, .zip)</p>
+                        <input type="file" id="update-file-input" style="display:none;" onchange="if(typeof handleUpdateFileUpload === 'function') handleUpdateFileUpload(this)">
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-card" style="background: rgba(220, 38, 38, 0.05); border: 1px solid rgba(220, 38, 38, 0.1);">
+                <h3 style="color:var(--danger);">⚠️ System Integrity & Recovery Tools</h3>
+                <p style="font-size:0.85rem; color:var(--text);">In case of UI corruption or failed updates, use the force recovery options below.</p>
+                <div style="display:flex; gap:10px; margin-top:20px;">
+                    <button class="danger" style="background:var(--danger); color:white; border:none; border-radius:8px; padding:10px 20px; font-weight:bold; cursor:pointer;" onclick="if(typeof forceStateWipe === 'function') forceStateWipe()">Force Global Cache Purge (F5 Root)</button>
+                    <button class="secondary" style="padding:10px 20px; border-radius:8px; font-weight:bold; cursor:pointer;" onclick="if(typeof exportEmergencyBackup === 'function') exportEmergencyBackup()">Export Local DB Metadata (.json)</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="set-bank-tab" class="settings-panel hidden">
+            <div class="settings-card" style="border-top: 4px solid var(--secondary);">
+                <div class="settings-card-header">
+                    <h3>🏦 Corporate Bank Accounts Master</h3>
+                    <p>Add the bank accounts you wish to appear on Commercial Invoices and Contracts.</p>
+                </div>
+                
+                <form onsubmit="addBankProfile(event)" style="margin-bottom: 25px; background: var(--bg); padding: 20px; border-radius: 8px; border: 1px solid var(--border);">
+                    <div class="grid-3">
+                        <div class="form-group" style="grid-column: span 2;">
+                            <label>Bank Name & Branch</label>
+                            <input type="text" id="bank-name" required placeholder="e.g. HDFC BANK LTD, FORT BRANCH">
+                        </div>
+                        <div class="form-group">
+                            <label>Account No / IBAN</label>
+                            <input type="text" id="bank-acc" required placeholder="e.g. 502000... / AE...">
+                        </div>
+                        <div class="form-group">
+                            <label>SWIFT Code</label>
+                            <input type="text" id="bank-swift" required placeholder="8 or 11 characters">
+                        </div>
+                        <div class="form-group">
+                            <label>IFSC Code (Local)</label>
+                            <input type="text" id="bank-ifsc" placeholder="e.g. HDFC0000060">
+                        </div>
+                        <div class="form-group">
+                            <label>AD Code (Customs)</label>
+                            <input type="text" id="bank-ad" placeholder="Authorized Dealer Code">
+                        </div>
+                        <div class="form-group" style="display:flex; align-items:center; gap:8px; margin-top: 25px;">
+                            <input type="checkbox" id="bank-is-default" style="width: 20px; height: 20px;">
+                            <label style="margin:0; cursor:pointer;" for="bank-is-default">Mark as Default for Documents</label>
+                        </div>
+                        
+                        <div style="grid-column: span 3; margin-top: 15px; border-top: 1px dashed var(--border); padding-top: 15px;">
+                            <input type="hidden" id="bank-edit-id" value="">
+                            <label style="color: var(--primary); font-size: 0.9rem; font-weight: bold; margin-bottom: 10px; display: block;">Intermediary / Correspondent Bank Details (Optional for USD/EUR)</label>
+                        </div>
+                        <div class="form-group">
+                            <label>Correspondent Bank Name</label>
+                            <input type="text" id="bank-corr-name" placeholder="e.g. JP MORGAN CHASE">
+                        </div>
+                        <div class="form-group">
+                            <label>Correspondent A/C</label>
+                            <input type="text" id="bank-corr-acc" placeholder="Account Number">
+                        </div>
+                        <div class="form-group">
+                            <label>Correspondent SWIFT</label>
+                            <input type="text" id="bank-corr-swift" placeholder="SWIFT Code">
+                        </div>
+                    </div>
+                    <button type="submit" id="bank-submit-btn" style="width: 100%; margin-top: 10px;">➕ Save Bank Account</button>
+                    <button type="button" id="bank-cancel-btn" class="secondary" style="width: 100%; margin-top: 10px; display: none;" onclick="resetBankForm()">Cancel Edit</button>
+                </form>
+
+                <div style="overflow-x: auto;">
+                    <table id="bank-table" style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                        <thead>
+                            <tr style="background: var(--bg); text-align: left;">
+                                <th style="padding: 12px; border-bottom: 1px solid var(--border);">Bank Details</th>
+                                <th style="padding: 12px; border-bottom: 1px solid var(--border);">Codes (SWIFT/IFSC)</th>
+                                <th style="padding: 12px; border-bottom: 1px solid var(--border);">Correspondent Bank</th>
+                                <th style="padding: 12px; border-bottom: 1px solid var(--border); text-align:right;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Removed duplicated Users tab to prevent ID conflicts -->
+
+
+
+        <div id="set-print-tab" class="settings-panel hidden">
+            <div class="settings-card" style="border-top: 4px solid var(--warning);">
+                <div class="settings-card-header">
+                    <h3>🖨️ Master PDF & Branding Engine</h3>
+                    <p>Control exactly how your official documents render and print.</p>
+                </div>
+                
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>Default Output Currency</label>
+                        <select id="print-currency">
+                            <option value="USD">USD ($) - International Standard</option>
+                            <option value="EUR">EUR (€)</option>
+                            <option value="INR">INR (₹) - Domestic</option>
+                            <option value="GBP">GBP (£)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>PDF Page Margins</label>
+                        <select id="print-margins">
+                            <option value="normal">Normal (Standard Spacing)</option>
+                            <option value="narrow">Narrow (Maximizes Space for Large Items)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Header Offset Margin (mm)</label>
+                        <input type="number" id="print-header-margin" value="45" placeholder="Pushes content below your letterhead header">
+                    </div>
+                    <div class="form-group">
+                        <label>Footer Offset Margin (mm)</label>
+                        <input type="number" id="print-footer-margin" value="27" placeholder="Leaves space for your letterhead footer">
+                    </div>
+                </div>
+
+                <div style="margin-top: 20px; padding: 20px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px;">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                        <input type="checkbox" id="print-letterhead-toggle" style="width: 20px; height: 20px; accent-color: var(--primary);">
+                        <h4 style="margin: 0; color: var(--primary); font-size: 1.1rem;">Print onto Full A4 Letterhead Background</h4>
+                    </div>
+                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">Select which documents automatically inject the digital letterhead:</p>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; font-size: 0.85rem;">
+                        <label><input type="checkbox" class="lh-doc-cb" value="sales"> Sales Contract</label>
+                        <label><input type="checkbox" class="lh-doc-cb" value="proforma"> Proforma Invoice</label>
+                        <label><input type="checkbox" class="lh-doc-cb" value="commercial"> Commercial Invoice</label>
+                        <label><input type="checkbox" class="lh-doc-cb" value="customs"> Customs Invoice</label>
+                        <label><input type="checkbox" class="lh-doc-cb" value="packing"> Packing List</label>
+                        <label><input type="checkbox" class="lh-doc-cb" value="phyto"> Phyto / SGS Draft</label>
+                    </div>
+                </div>
+
+                <div style="margin-top: 20px; padding: 20px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px;">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                        <input type="checkbox" id="print-signature-toggle" style="width: 20px; height: 20px; accent-color: var(--primary);">
+                        <h4 style="margin: 0; color: var(--primary); font-size: 1.1rem;">Inject Digital Authorized Signature & Stamp</h4>
+                    </div>
+                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">Select which documents automatically inject the signature at the bottom:</p>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; font-size: 0.85rem; margin-bottom: 20px;">
+                        <label><input type="checkbox" class="sig-doc-cb" value="sales"> Sales Contract</label>
+                        <label><input type="checkbox" class="sig-doc-cb" value="proforma"> Proforma Invoice</label>
+                        <label><input type="checkbox" class="sig-doc-cb" value="commercial"> Commercial Invoice</label>
+                        <label><input type="checkbox" class="sig-doc-cb" value="customs"> Customs Invoice</label>
+                        <label><input type="checkbox" class="sig-doc-cb" value="packing"> Packing List</label>
+                        <label><input type="checkbox" class="sig-doc-cb" value="po"> Purchase Orders</label>
+                    </div>
+                    <div style="border-top: 1px dashed var(--border); padding-top: 15px;">
+                        <label style="font-weight: bold; font-size: 0.85rem;">Signature Image Scale / Size: <span id="sig-height-val" style="color:var(--primary); font-size: 1.1rem;">80</span> px</label>
+                        <input type="range" id="print-signature-height" min="40" max="250" value="80" oninput="document.getElementById('sig-height-val').innerText = this.value" style="width: 100%; margin-top: 10px;">
+                    </div>
+                </div>
+
+                <button type="button" onclick="savePrintSettings()" style="margin-top: 20px; width: 100%; font-size: 1.1rem; padding: 12px;">💾 Save Print Settings</button>
+            </div>
+        </div>
+
+        <div id="set-storage-tab" class="settings-panel hidden">
+            <div class="grid-2">
+                <div class="settings-card">
+                    <div class="settings-card-header">
+                        <h3>☁️ Cloud Sync & Data Redundancy</h3>
+                        <p>Manage how your data communicates with Google and Dropbox Servers.</p>
+                    </div>
+                    
+                    <div style="margin-bottom: 20px; padding: 15px; background: rgba(34, 197, 94, 0.05); border: 1px solid #bbf7d0; border-radius: 8px;">
+                        <label style="display: flex; align-items: center; gap: 10px; font-weight: bold; font-size: 1rem; color: #166534;">
+                            <input type="checkbox" style="width: 20px; height: 20px; accent-color: #166534;" checked disabled>
+                            Real-Time Firebase Sync (Active)
+                        </label>
+                        <p style="font-size: 0.8rem; margin: 5px 0 0 30px; color: #14532d;">All modules are actively synchronizing securely with Google Firebase.</p>
+                    </div>
+
+                    <div style="margin-bottom: 20px; padding: 15px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px;">
+                        <label style="display: flex; align-items: center; gap: 10px; font-weight: bold; font-size: 1rem; color: var(--primary);">
+                            <input type="checkbox" id="store-gdrive" style="width: 20px; height: 20px; accent-color: var(--primary);" onchange="toggleGDriveAuth(this)">
+                            Google Drive Vault Integration
+                        </label>
+                        <p style="font-size: 0.8rem; margin: 5px 0 15px 30px; color: var(--text-muted);">Automatically backup generated PDFs (Invoices, POs) to your corporate Google Drive.</p>
+                        
+                        <div id="gdrive-auth-block" style="display:none; margin-left: 30px;">
+                            <input type="password" id="gdrive-api-key" placeholder="Paste Google API Token Here..." style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; margin-bottom: 10px;">
+                            <button type="button" class="secondary" style="background: var(--primary); color: white; border: none; font-weight: bold;" onclick="authenticateGDrive()">Authenticate Google Drive</button>
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 20px; padding: 15px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px;">
+                        <label style="display: flex; align-items: center; gap: 10px; font-weight: bold; font-size: 1rem; color: #0284c7;">
+                            <input type="checkbox" id="store-dropbox" style="width: 20px; height: 20px; accent-color: #0284c7;" onchange="toggleDropboxAuth(this)">
+                            Dropbox Vault Integration
+                        </label>
+                        <p style="font-size: 0.8rem; margin: 5px 0 15px 30px; color: var(--text-muted);">Automatically backup generated PDFs to your corporate Dropbox.</p>
+                        
+                        <div id="dropbox-auth-block" style="display:none; margin-left: 30px;">
+                            <input type="password" id="dropbox-api-key" placeholder="Paste Dropbox Access Token Here..." style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; margin-bottom: 10px;">
+                            <button type="button" class="secondary" style="background: #0284c7; color: white; border: none; font-weight: bold;" onclick="authenticateDropbox()">Authenticate Dropbox</button>
+                        </div>
+                    </div>
+
+                    <div style="padding-top: 15px; border-top: 1px dashed var(--border);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <h4 style="margin: 0;">Hard Drive Master Backup</h4>
+                            <div style="display: flex; gap: 8px;">
+                                <button type="button" class="secondary" title="Change Backup Directory" style="padding: 4px 8px;" onclick="changeMasterBackupPath()">📁 Change Folder</button>
+                                <button type="button" class="secondary" title="Immediate Manual Backup" style="padding: 4px 8px; background: var(--success); color: white; border: none;" onclick="triggerManualMasterBackup()">⚡ Manual Save</button>
+                            </div>
+                        </div>
+                        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">Data rotates weekly across subfolders (Monday-Sunday) to ensure redundancy without bloating storage.</p>
+                        
+                        <div style="background: var(--bg); padding: 10px; border-radius: 6px; border: 1px solid var(--border); margin-bottom: 15px;">
+                            <label style="font-size: 0.65rem; font-weight: bold; text-transform: uppercase; color: var(--text-muted); display: block; margin-bottom: 4px;">Active Backup Path:</label>
+                            <div id="master-backup-path-display" style="font-family: monospace; font-size: 0.75rem; word-break: break-all; color: var(--primary);"><i>No local path configured. Backups will default to app storage.</i></div>
+                        </div>
+
+                        <button type="button" onclick="downloadManualBackup()" style="width: 100%; background: #475569; font-size: 0.85rem;">📥 Download Raw JSON (One-Time)</button>
+                        <div id="set-last-backup" style="font-size: 0.7rem; color: var(--text-muted); margin-top: 10px; text-align: center;"></div>
+                    </div>
+                </div>
+
+                <div class="settings-card" style="border-top: 4px solid var(--success);">
+                    <div class="settings-card-header">
+                        <h3>📊 CSV Data Import / Export</h3>
+                        <p>Move data directly into Excel or Tally.</p>
+                    </div>
+                    
+                    <div style="margin-bottom: 25px;">
+                        <label style="font-weight: bold; font-size: 0.85rem; margin-bottom: 8px; display: block;">Export Module to CSV</label>
+                        <select id="csv-export-module" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 10px;">
+                            <option value="docs">Invoices & Documents</option>
+                            <option value="po">Purchase Orders</option>
+                            <option value="inventory_log">Inventory Transactions</option>
+                            <option value="log_containers">Export Containers</option>
+                            <option value="expenses">Expense Ledger</option>
+                            <option value="forex">Forex Realizations</option>
+                            <option value="crm_contacts">CRM Directory</option>
+                        </select>
+                        <div style="display:flex; gap:8px; margin-bottom: 5px;">
+                            <button type="button" onclick="executeCSVExport()" style="flex:1; background: #475569; font-weight: bold;">📥 Download CSV</button>
+                            <button type="button" onclick="exportModuleToExcel()" style="flex:1; background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; font-weight: bold;">📊 Download Excel (.xlsx)</button>
+                        </div>
+                    </div>
+
+                    <div style="padding-top: 20px; border-top: 1px dashed var(--border);">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                            <label style="font-weight: bold; font-size: 0.85rem; margin: 0;">Bulk Import via CSV</label>
+                            <button type="button" class="secondary" style="padding: 2px 8px; font-size: 0.75rem;" onclick="downloadSampleCSV()">📄 Download Template</button>
+                        </div>
+                        <select id="csv-import-module" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 10px;">
+                            <option value="inventory">Inventory Master Items</option>
+                            <option value="expenses">Expense Ledger</option>
+                            <option value="crm_contacts">CRM Directory</option>
+                        </select>
+                        <input type="file" id="csv-import-file" accept=".csv" style="width: 100%; padding: 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; margin-bottom: 10px;">
+                        <button type="button" onclick="executeCSVImport()" class="secondary" style="width: 100%; border-color: var(--success); color: var(--success); font-weight: bold;">🚀 Upload & Audit Data</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="set-users-tab" class="settings-panel hidden">
+            <div class="grid-2-1">
+                <div class="settings-card" style="border-top: 4px solid var(--primary);">
+                    <div class="settings-card-header">
+                        <h3>👥 Enterprise User Directory</h3>
+                        <p>Manage staff accounts and monitor access levels.</p>
+                    </div>
+                    <div style="overflow-x: auto;">
+                        <table id="users-table" style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                            <thead>
+                                <tr style="background: var(--bg); text-align: left;">
+                                    <th style="padding: 12px; border-bottom: 1px solid var(--border);">User Account</th>
+                                    <th style="padding: 12px; border-bottom: 1px solid var(--border);">Role</th>
+                                    <th style="padding: 12px; border-bottom: 1px solid var(--border);">Permissions</th>
+                                    <th style="padding: 12px; border-bottom: 1px solid var(--border); text-align: right;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="settings-card" style="border-top: 4px solid var(--info);">
+                    <div class="settings-card-header">
+                        <h3>➕ Create New Access Point</h3>
+                        <p>Generate secure credentials for staff or clients.</p>
+                    </div>
+
+                    <form onsubmit="addUser(event)">
+                        <div class="form-group">
+                            <label>Username / Login ID</label>
+                            <input type="text" id="new-user-name" required placeholder="e.g. jhon_ops">
+                        </div>
+                        <div class="form-group">
+                            <label>Account Role</label>
+                            <select id="new-user-role" onchange="toggleUserOptions(this.value)" required>
+                                <option value="staff">Internal Staff (Restricted)</option>
+                                <option value="admin">System Administrator (Full Access)</option>
+                                <option value="buyer">Client Portal (Buyer Restricted)</option>
+                            </select>
+                        </div>
+
+                        <div id="buyer-map-block" style="display:none; margin-bottom: 15px; padding: 15px; background: rgba(59, 130, 246, 0.05); border: 1px solid var(--border); border-radius: 8px;">
+                            <label style="font-weight: bold; font-size: 0.8rem; color: var(--primary);">Link to Buyer Account</label>
+                            <input type="text" id="new-user-buyer-map" placeholder="Copy Buyer Name EXACTLY from CRM/Invoices">
+                        </div>
+
+                        <div id="granular-permissions-block" style="display:none; margin-top: 20px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--border); padding-bottom: 10px; margin-bottom: 15px;">
+                                <div>
+                                    <h4 style="margin: 0; color: var(--primary); font-size: 1.1rem; display: flex; align-items: center; gap: 8px;"><span>🔒</span> Granular RBAC Matrix</h4>
+                                    <p style="margin: 3px 0 0 0; font-size: 0.8rem; color: var(--text-muted);">Configure exact read/write permissions per micro-module for this staff account.</p>
+                                </div>
+                                <div style="display:flex; gap:15px; background: rgba(59, 130, 246, 0.05); padding: 8px 15px; border-radius: 8px; border: 1px solid rgba(59, 130, 246, 0.2);">
+                                    <label style="font-weight: bold; font-size: 0.85rem; color: var(--primary); display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                                        <input type="checkbox" id="perm-edit" checked style="accent-color: var(--primary); width: 16px; height: 16px; margin: 0;"> Global Write
+                                    </label>
+                                    <label style="font-weight: bold; font-size: 0.85rem; color: var(--danger); display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                                        <input type="checkbox" id="perm-delete" style="accent-color: var(--danger); width: 16px; height: 16px; margin: 0;"> Global Delete
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div style="max-height: 450px; overflow-y: auto; padding-right: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+
+                                <!-- CRM -->
+                                <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 15px; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+                                    <label style="font-weight: 800; color: var(--text); display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                        <input type="checkbox" class="mod-cb" value="nav-crm" style="width: 18px; height: 18px; accent-color: var(--primary); margin: 0;"> 
+                                        <span style="line-height: 1;">🌐 CRM & Network</span>
+                                    </label>
+                                    <p style="font-size: 0.75rem; color: var(--text-muted); margin: 5px 0 0 26px;">Directory for buyers and suppliers.</p>
+                                </div>
+                                
+                                <!-- Documents -->
+                                <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 15px; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+                                    <label style="font-weight: 800; color: var(--text); display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                        <input type="checkbox" class="mod-cb" value="nav-documents" style="width: 18px; height: 18px; accent-color: var(--primary); margin: 0;"> 
+                                        <span style="line-height: 1;">📄 Commercial Docs</span>
+                                    </label>
+                                    <p style="font-size: 0.75rem; color: var(--text-muted); margin: 5px 0 0 26px;">Invoice generator and templates.</p>
+                                </div>
+
+                                <!-- Logistics -->
+                                <div style="grid-column: span 2; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 15px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.01);">
+                                    <label style="font-weight: 800; font-size: 1.05rem; color: var(--text); display: flex; align-items: center; gap: 8px; cursor: pointer; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 10px;">
+                                        <input type="checkbox" class="mod-cb" value="nav-logistics" onclick="toggleSubCb(this, 'sub-log')" style="width: 20px; height: 20px; accent-color: var(--primary); margin: 0;"> 
+                                        <span style="line-height: 1;">🚚 Logistics & Operations</span>
+                                    </label>
+                                    <div class="sub-log" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding-left: 28px;">
+                                        <label style="font-size: 0.85rem; display: flex; align-items: center; gap: 5px; cursor:pointer;"><input type="checkbox" class="sub-mod-cb" value="log-truck" style="accent-color: var(--primary); margin: 0;"> <span style="line-height: 1;">Inland Trucks</span></label>
+                                        <label style="font-size: 0.85rem; display: flex; align-items: center; gap: 5px; cursor:pointer;"><input type="checkbox" class="sub-mod-cb" value="log-container" style="accent-color: var(--primary); margin: 0;"> <span style="line-height: 1;">Port Containers</span></label>
+                                        <label style="font-size: 0.85rem; display: flex; align-items: center; gap: 5px; cursor:pointer;"><input type="checkbox" class="sub-mod-cb" value="log-vessel" style="accent-color: var(--primary); margin: 0;"> <span style="line-height: 1;">Vessel Tracking</span></label>
+                                        <label style="font-size: 0.85rem; display: flex; align-items: center; gap: 5px; cursor:pointer;"><input type="checkbox" class="sub-mod-cb" value="log-courier" style="accent-color: var(--primary); margin: 0;"> <span style="line-height: 1;">Couriers / AWB</span></label>
+                                        <label style="font-size: 0.85rem; display: flex; align-items: center; gap: 5px; cursor:pointer;"><input type="checkbox" class="sub-mod-cb" value="log-freight" style="accent-color: var(--primary); margin: 0;"> <span style="line-height: 1;">Freight Optimizer</span></label>
+                                    </div>
+                                </div>
+                                
+                                <!-- Inventory -->
+                                <div style="grid-column: span 2; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 15px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.01);">
+                                    <label style="font-weight: 800; font-size: 1.05rem; color: var(--text); display: flex; align-items: center; gap: 8px; cursor: pointer; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 10px;">
+                                        <input type="checkbox" class="mod-cb" value="nav-inventory" onclick="toggleSubCb(this, 'sub-inv')" style="width: 20px; height: 20px; accent-color: var(--primary); margin: 0;"> 
+                                        <span style="line-height: 1;">📦 Inventory & Procurement</span>
+                                    </label>
+                                    <div class="sub-inv" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding-left: 28px;">
+                                        <label style="font-size: 0.85rem; display: flex; align-items: center; gap: 5px; cursor:pointer;"><input type="checkbox" class="sub-mod-cb" value="inv-stock" style="accent-color: var(--primary); margin: 0;"> <span style="line-height: 1;">Stock Ledger</span></label>
+                                        <label style="font-size: 0.85rem; display: flex; align-items: center; gap: 5px; cursor:pointer;"><input type="checkbox" class="sub-mod-cb" value="inv-po" style="accent-color: var(--primary); margin: 0;"> <span style="line-height: 1;">POs (Inbound)</span></label>
+                                        <label style="font-size: 0.85rem; display: flex; align-items: center; gap: 5px; cursor:pointer;"><input type="checkbox" class="sub-mod-cb" value="inv-sc" style="accent-color: var(--primary); margin: 0;"> <span style="line-height: 1;">Sales Contracts</span></label>
+                                        <label style="font-size: 0.85rem; display: flex; align-items: center; gap: 5px; cursor:pointer;"><input type="checkbox" class="sub-mod-cb" value="inv-loss" style="accent-color: var(--primary); margin: 0;"> <span style="line-height: 1;">Transit Loss</span></label>
+                                    </div>
+                                </div>
+
+                                <!-- Finance -->
+                                <div style="grid-column: span 2; background: rgba(239, 68, 68, 0.02); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 8px; padding: 15px;">
+                                    <label style="font-weight: 800; font-size: 1.05rem; color: var(--danger); display: flex; align-items: center; gap: 8px; cursor: pointer; border-bottom: 1px solid rgba(239, 68, 68, 0.1); padding-bottom: 10px; margin-bottom: 10px;">
+                                        <input type="checkbox" class="mod-cb" value="nav-finance" onclick="toggleSubCb(this, 'sub-fin')" style="width: 20px; height: 20px; accent-color: var(--danger); margin: 0;"> 
+                                        <span style="line-height: 1;">💰 Finance & Forex (Sensitive Restrictions)</span>
+                                    </label>
+                                    <div class="sub-fin" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding-left: 28px;">
+                                        <label style="font-size: 0.85rem; display: flex; align-items: center; gap: 5px; cursor:pointer;"><input type="checkbox" class="sub-mod-cb" value="fin-ledger" style="accent-color: var(--danger); margin: 0;"> <span style="line-height: 1;">Expense Ledger</span></label>
+                                        <label style="font-size: 0.85rem; display: flex; align-items: center; gap: 5px; cursor:pointer;"><input type="checkbox" class="sub-mod-cb" value="fin-forex" style="accent-color: var(--danger); margin: 0;"> <span style="line-height: 1;">Forex Realizations</span></label>
+                                        <label style="font-size: 0.85rem; display: flex; align-items: center; gap: 5px; cursor:pointer;"><input type="checkbox" class="sub-mod-cb" value="fin-hedge" style="accent-color: var(--danger); margin: 0;"> <span style="line-height: 1;">Forward Contracts</span></label>
+                                        <label style="font-size: 0.85rem; display: flex; align-items: center; gap: 5px; cursor:pointer;"><input type="checkbox" class="sub-mod-cb" value="fin-aging" style="accent-color: var(--danger); margin: 0;"> <span style="line-height: 1;">Overdue Aging</span></label>
+                                        <label style="font-size: 0.85rem; font-weight: bold; color: var(--danger); display: flex; align-items: center; gap: 5px; cursor:pointer;"><input type="checkbox" class="sub-mod-cb" value="fin-pnl" style="accent-color: var(--danger); margin: 0;"> <span style="line-height: 1;">Profit & Loss (P&L)</span></label>
+                                        <label style="font-size: 0.85rem; font-weight: bold; color: var(--danger); display: flex; align-items: center; gap: 5px; cursor:pointer;"><input type="checkbox" class="sub-mod-cb" value="fin-admin" style="accent-color: var(--danger); margin: 0;"> <span style="line-height: 1;">Profit Dossiers</span></label>
+                                        <label style="font-size: 0.85rem; display: flex; align-items: center; gap: 5px; cursor:pointer;"><input type="checkbox" class="sub-mod-cb" value="nav-costing" style="accent-color: var(--danger); margin: 0;"> <span style="line-height: 1;">Export Costing</span></label>
+                                        <label style="font-size: 0.85rem; display: flex; align-items: center; gap: 5px; cursor:pointer;"><input type="checkbox" class="sub-mod-cb" value="nav-lc-manager" style="accent-color: var(--danger); margin: 0;"> <span style="line-height: 1;">LC Manager</span></label>
+                                    </div>
+                                </div>
+                                
+                                <!-- HR -->
+                                <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 15px; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+                                    <label style="font-weight: 800; color: var(--text); display: flex; align-items: center; gap: 8px; cursor: pointer; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 10px;">
+                                        <input type="checkbox" class="mod-cb" value="nav-attendance" onclick="toggleSubCb(this, 'sub-hr')" style="width: 18px; height: 18px; accent-color: var(--primary); margin: 0;"> 
+                                        <span style="line-height: 1;">👤 HR & Payroll</span>
+                                    </label>
+                                    <div class="sub-hr" style="display: flex; flex-direction: column; gap: 8px; padding-left: 26px;">
+                                        <label style="font-size: 0.8rem; display: flex; align-items: center; gap: 5px; cursor:pointer;"><input type="checkbox" class="sub-mod-cb" value="hr-att" style="accent-color: var(--primary); margin: 0;"> <span style="line-height: 1;">Daily Attendance</span></label>
+                                        <label style="font-size: 0.8rem; display: flex; align-items: center; gap: 5px; cursor:pointer;"><input type="checkbox" class="sub-mod-cb" value="hr-adv" style="accent-color: var(--primary); margin: 0;"> <span style="line-height: 1;">Salary Advances</span></label>
+                                        <label style="font-size: 0.8rem; display: flex; align-items: center; gap: 5px; cursor:pointer;"><input type="checkbox" class="sub-mod-cb" value="hr-payroll" style="accent-color: var(--primary); margin: 0;"> <span style="line-height: 1;">Monthly Payslips</span></label>
+                                    </div>
+                                </div>
+                                
+                                <!-- Others -->
+                                <div style="display: flex; flex-direction: column; gap: 15px;">
+                                    <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 15px; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+                                        <label style="font-weight: 800; color: var(--text); display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                            <input type="checkbox" class="mod-cb" value="nav-tasks" style="width: 18px; height: 18px; accent-color: var(--primary); margin: 0;"> 
+                                            <span style="line-height: 1;">✅ Task Workspace</span>
+                                        </label>
+                                    </div>
+                                    <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 15px; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+                                        <label style="font-weight: 800; color: var(--text); display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                            <input type="checkbox" class="mod-cb" value="nav-exporter-data" style="width: 18px; height: 18px; accent-color: var(--primary); margin: 0;"> 
+                                            <span style="line-height: 1;">🛡️ Vault & Exporter Data</span>
+                                        </label>
+                                    </div>
+                                    <div style="background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; padding: 15px;">
+                                        <label style="font-weight: 800; color: var(--danger); display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                            <input type="checkbox" class="mod-cb" value="nav-settings" style="width: 18px; height: 18px; accent-color: var(--danger); margin: 0;"> 
+                                            <span style="line-height: 1;">⚙️ Core App Settings</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+
+                        <button type="submit" style="width:100%; margin-top: 15px; border-radius: 8px; font-weight: bold; padding: 12px; background: var(--primary);">🚀 Generate Credentials & Save</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div id="set-api-tab" class="settings-panel hidden">
+            <div class="settings-card" style="border-top: 4px solid var(--accent);">
+                <div class="settings-card-header">
+                    <h3>🔗 API & External Connectivity</h3>
+                    <p>Configure Gmail, Forex, and global application fallbacks.</p>
+                </div>
+                
+                <form onsubmit="saveApiSettings(event)">
+                    <div class="grid-2">
+                        <div class="form-group" style="grid-column: span 2;">
+                            <label>Gmail OAuth Client ID</label>
+                            <input type="text" id="api-gmail-client-id" placeholder="apps.googleusercontent.com">
+                            <small style="color:var(--text-muted); font-size:0.75rem; display:block; margin-top:4px;">Used for the Mail module integration.</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Default USD/INR Exchange Rate</label>
+                            <input type="number" step="0.01" id="api-usd-inr-rate" placeholder="84.00">
+                            <small style="color:var(--text-muted); font-size:0.75rem; display:block; margin-top:4px;">Fallback rate if live fetching fails.</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Forex API Endpoint (Optional)</label>
+                            <input type="text" id="api-forex-endpoint" placeholder="Enter API URL or leave blank for default">
+                            <small style="color:var(--text-muted); font-size:0.75rem; display:block; margin-top:4px;">Custom endpoint to pull market data.</small>
+                        </div>
+                    </div>
+                    <button type="submit" style="width: 100%; margin-top: 20px; font-size: 1.05rem; padding: 12px; background: var(--accent); color:white; border:none; border-radius:8px; cursor:pointer;">💾 Save API Connectivity Settings</button>
+                </form>
+            </div>
+        </div>
+
+        <div id="set-ai-tab" class="settings-panel hidden">
+            <div class="settings-card" style="border-top: 4px solid #8b5cf6;">
+                <div class="settings-card-header" style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div>
+                        <h3>🤖 Enterprise Advanced AI Engine (Unified Control)</h3>
+                        <p>Configure the high-availability AI backbone for Invoicing, Forex Forecasting, and Logistics Automation.</p>
+                    </div>
+                    <div id="ai-global-status" style="padding: 6px 12px; background: rgba(139, 92, 246, 0.1); color: #7c3aed; border: 1px solid #ddd6fe; border-radius: 20px; font-size: 0.75rem; font-weight: bold; display: flex; align-items: center; gap: 8px;">
+                        <span class="status-dot" style="display: inline-block; width: 8px; height: 8px; background: #64748b; border-radius: 50%;"></span>
+                        SYSTEM OFFLINE
+                    </div>
+                </div>
+
+                <div class="grid-2" style="gap: 30px;">
+                    <div>
+                        <div style="margin-bottom: 25px;">
+                            <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+                                <div style="width:32px; height:32px; background:#10b981; border-radius:50%; display:flex; align-items:center; justify-content:center; color:white; font-size:1.2rem;">G</div>
+                                <h4 style="margin:0;">Google Gemini (Primary Engine)</h4>
+                            </div>
+                            <div class="form-group">
+                                <label>Gemini 1.5 Flash API Key</label>
+                                <input type="password" id="ai-key-gemini" placeholder="AIza..." style="font-family: monospace;">
+                            </div>
+                            <div id="status-gemini" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 5px;">Status: <span style="font-weight:bold;">Not Configured</span></div>
+                        </div>
+
+                        <div style="border-top: 1px solid var(--border); padding-top: 25px;">
+                            <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+                                <div style="width:32px; height:32px; background:#3b82f6; border-radius:50%; display:flex; align-items:center; justify-content:center; color:white; font-size:1.2rem;">O</div>
+                                <h4 style="margin:0;">OpenAI ChatGPT (Failover Engine)</h4>
+                            </div>
+                            <div class="form-group">
+                                <label>GPT-4o-mini API Key</label>
+                                <input type="password" id="ai-key-openai" placeholder="sk-..." style="font-family: monospace;">
+                            </div>
+                            <div id="status-openai" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 5px;">Status: <span style="font-weight:bold;">Not Configured</span></div>
+                        </div>
+
+                        <button onclick="Enterprise.AI.saveConfigs()" style="width:100%; margin-top: 30px; background: #8b5cf6; padding: 15px; font-size: 1rem;">💾 Synchronize Global AI Engine Targets</button>
+                    </div>
+
+                    <div style="background: var(--bg); border: 1px dashed var(--border); border-radius: 12px; padding: 25px;">
+                        <h4 style="margin:0 0 15px 0;">📡 Live Intelligence Health</h4>
+                        
+                        <div style="display:flex; flex-direction:column; gap:20px;">
+                            <div class="card" style="margin:0; padding:15px; border-left:4px solid var(--primary);">
+                                <div style="font-size:0.7rem; color:var(--text-muted); font-weight:bold; margin-bottom:5px;">LAST SUCCESSFUL SYNC</div>
+                                <div id="ai-last-sync" style="font-size:1.2rem; font-weight:bold;">NEVER</div>
+                                <div style="font-size:0.75rem; color:var(--text-muted); margin-top:5px;">Real-time accuracy based on latest macro indices.</div>
+                            </div>
+
+                            <div class="card" style="margin:0; padding:15px; border-left:4px solid #10b981;">
+                                <div style="font-size:0.7rem; color:var(--text-muted); font-weight:bold; margin-bottom:5px;">ACTIVE MODULE CONNECTIONS</div>
+                                <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:8px;">
+                                    <span style="background:rgba(16,185,129,0.1); color:#059669; padding:4px 8px; border-radius:4px; font-size:0.7rem; font-weight:bold;">Logistics AI ✓</span>
+                                    <span style="background:rgba(16,185,129,0.1); color:#059669; padding:4px 8px; border-radius:4px; font-size:0.7rem; font-weight:bold;">Finance MAFAE ✓</span>
+                                    <span style="background:rgba(16,185,129,0.1); color:#059669; padding:4px 8px; border-radius:4px; font-size:0.7rem; font-weight:bold;">Dashboard Advise ✓</span>
+                                    <span style="background:rgba(16,185,129,0.1); color:#059669; padding:4px 8px; border-radius:4px; font-size:0.7rem; font-weight:bold;">Document Intelligence ✓</span>
+                                </div>
+                            </div>
+                            
+                            <div style="font-size:0.8rem; color:var(--text-muted); line-height:1.5;">
+                                <p>⚠️ <b>Failover Protocol:</b> The system will prioritize <b>Gemini</b> for all business queries. If response time exceeds 8 seconds or an error occurs, <b>ChatGPT</b> takes over immediately to ensure your business remains live and data-reactive.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="set-builder-tab" class="settings-panel hidden">
+            <div class="grid-2">
+                <div class="settings-card">
+                    <div class="settings-card-header">
+                        <h3>🧩 Document Tab Builder</h3>
+                        <p>Create custom draft tabs (e.g. Health Certificate) inside the Documents module.</p>
+                    </div>
+                    <form onsubmit="addDocType(event)" style="display: flex; gap: 10px; margin-bottom: 20px;">
+                        <input type="text" id="new-doc-type" placeholder="e.g. SGS Inspection Draft" required style="flex-grow: 1; padding: 10px; border-radius: 6px; border: 1px solid var(--border);">
+                        <button type="submit" style="padding: 10px 20px;">+ Add Tab</button>
+                    </form>
+                    <table id="doc-types-table" style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                        <thead><tr style="background: var(--bg); text-align: left;"><th style="padding: 10px;">Document Tab Name</th><th style="padding: 10px; text-align: right;">Action</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+
+                <div class="settings-card">
+                    <div class="settings-card-header">
+                        <h3>🧬 Universal Custom Fields</h3>
+                        <p>Inject new data fields dynamically into specific module forms.</p>
+                    </div>
+                    <form onsubmit="addUniversalCustomField(event)" style="margin-bottom: 20px; background: var(--bg); padding: 15px; border-radius: 8px; border: 1px solid var(--border);">
+                        <div class="form-group">
+                            <label>New Field Name</label>
+                            <input type="text" id="ucf-name" placeholder="e.g. Container Temperature" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Inject Into Module</label>
+                            <select id="ucf-target" required>
+                                <option value="Commercial Invoice">Commercial Invoice</option>
+                                <option value="Proforma Invoice">Proforma Invoice</option>
+                                <option value="Packing List">Packing List</option>
+                                <option value="Customs Invoice">Customs Invoice</option>
+                                <option value="Phyto Draft">Phyto Draft</option>
+                                <option value="OBL Draft">OBL Draft</option>
+                                <option value="COO Draft">COO Draft</option>
+                                
+                                <option disabled>────────────────────</option>
+                                <option value="log_containers">Logistics: Containers Tracker</option>
+                                <option value="log_trucks">Logistics: Truck Tracker</option>
+                                <option value="log_vessels">Logistics: Vessel Tracker</option>
+                                <option value="expenses">Finance: Expense Ledger</option>
+                                <option value="po">Inventory: Purchase Orders</option>
+                            </select>
+                        </div>
+                        <button type="submit" style="width: 100%;">+ Inject Custom Field</button>
+                    </form>
+                    <div style="overflow-y: auto; max-height: 250px;">
+                        <table id="univ-custom-fields-table" style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                            <thead><tr style="background: var(--bg); text-align: left;"><th style="padding: 10px;">Field Name</th><th style="padding: 10px;">Target Module</th><th style="padding: 10px; text-align: right;">Action</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="set-danger-tab" class="settings-panel hidden">
+            <div class="settings-card" style="border-top: 4px solid #b91c1c;">
+                <div class="settings-card-header">
+                    <h3 style="color: #b91c1c;">🚨 Critical System: Danger Zone</h3>
+                    <p>Highly sensitive administrative actions. These actions are permanent and cannot be reversed.</p>
+                </div>
+                
+                <div class="grid-2">
+                    <div style="background: #fff1f1; border: 1px solid #fca5a5; padding: 25px; border-radius: 12px; grid-column: span 2;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                             <div style="max-width: 60%;">
+                                 <h4 style="margin:0 0 5px 0; color: #7f1d1d; font-size: 1.1rem; font-weight: bold;">Terminate Business Environment</h4>
+                                 <p style="font-size: 0.9rem; color: #991b1b; line-height: 1.5; margin: 10px 0;">This will permanently purge all financial ledgers, documents, vendor history, and inventory data for the current active business profile. This action is **IMMEDIATE** and **FINAL**. Ensure you have local hardware backups before proceeding.</p>
+                                 <div style="margin-top: 15px; background: rgba(0,0,0,0.05); padding: 10px; border-radius: 6px; font-size: 0.75rem; color: #450a0a;">
+                                     <strong>Restriction:</strong> The root system profile (JFT Agro Overseas) cannot be expunged for security consistency.
+                                 </div>
+                             </div>
+                             <button type="button" id="btn-delete-company" class="danger" onclick="deleteCurrentCompany()" 
+                                style="padding: 15px 25px; font-size: 1rem; font-weight: bold; background: #ef4444; border:none; border-radius: 8px; box-shadow: 0 10px 15px -3px rgba(239, 68, 68, 0.4); cursor: pointer;">
+                                🗑️ Destroy Company Data
+                             </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="set-audit-tab" class="settings-panel hidden">
+            <div class="settings-card" style="border-top: 4px solid var(--danger);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <div>
+                        <h3 style="margin: 0; font-size: 1.25rem;">🛡️ Enterprise Security Audit Log</h3>
+                        <p style="margin: 5px 0 0 0; color: var(--text-muted); font-size: 0.85rem;">Immutable ledger of all critical actions performed by users.</p>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button type="button" class="danger" onclick="window.clearAuditLogs()" style="border: 1px solid var(--danger); background: transparent; color: var(--danger); font-weight: bold;">🧹 Clear Audit Log</button>
+                        <button type="button" class="danger" onclick="window.clearSystemCache()" style="font-weight: bold;">⚠️ Wipe Local UI Cache</button>
+                    </div>
+                </div>
+                <div style="height: 500px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px;">
+                    <table id="audit-logs-table" style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                        <thead style="position: sticky; top: 0; background: var(--bg); z-index: 10; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                            <tr style="text-align: left;">
+                                <th style="padding: 12px; border-bottom: 1px solid var(--border); width: 180px;">Timestamp</th>
+                                <th style="padding: 12px; border-bottom: 1px solid var(--border); width: 120px;">User Account</th>
+                                <th style="padding: 12px; border-bottom: 1px solid var(--border);">Action Executed</th>
+                            </tr>
+                        </thead>
+                        <tbody id="audit-logs-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="set-adv-storage-tab" class="settings-panel hidden">
+            <div class="grid-2">
+                <div class="settings-card" style="border-top: 4px solid #3b82f6;">
+                    <div class="settings-card-header">
+                        <h3>📊 Advanced Storage Intelligence</h3>
+                        <p>Real-time audit of local and cloud data utilization.</p>
+                    </div>
+                    
+                    <div style="display: flex; flex-direction: column; gap: 20px;">
+                        <div style="background: var(--bg); padding: 20px; border-radius: 12px; border: 1px solid var(--border);">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <div style="width: 12px; height: 12px; background: #3b82f6; border-radius: 50%;"></div>
+                                    <span style="font-weight: 800; font-size: 0.8rem; letter-spacing: 0.5px;">LOCAL BROWSER STORAGE</span>
+                                </div>
+                                <span id="storage-local-val" style="font-family: monospace; font-weight: bold; font-size: 1.1rem; color: #3b82f6;">0.00 KB</span>
+                            </div>
+                            <div style="height: 8px; background: #f1f5f9; border-radius: 4px; overflow: hidden; margin-bottom: 8px;">
+                                <div id="storage-local-bar" style="height: 100%; width: 0%; background: #3b82f6; transition: width 0.5s;"></div>
+                            </div>
+                            <small style="color: var(--text-muted); font-size: 0.75rem;">Capacity: 5MB (Browser Standard). Usage details: UI configs, session cache, and temporary buffers.</small>
+                        </div>
+
+                        <div style="background: var(--bg); padding: 20px; border-radius: 12px; border: 1px solid var(--border);">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <div style="width: 12px; height: 12px; background: #10b981; border-radius: 50%;"></div>
+                                    <span style="font-weight: 800; font-size: 0.8rem; letter-spacing: 0.5px;">FIREBASE CLOUD DATABASE</span>
+                                </div>
+                                <span id="storage-cloud-val" style="font-family: monospace; font-weight: bold; font-size: 1.1rem; color: #10b981;">0.00 KB</span>
+                            </div>
+                            <div style="height: 8px; background: #f1f5f9; border-radius: 4px; overflow: hidden; margin-bottom: 8px;">
+                                <div id="storage-cloud-bar" style="height: 100%; width: 0%; background: #10b981; transition: width 0.5s;"></div>
+                            </div>
+                            <small style="color: var(--text-muted); font-size: 0.75rem;">Live Mirror: Invoices, Expenses, CRM, and Global State. Capacity: 1GB (Standard Tier).</small>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px dashed var(--border);">
+                        <button onclick="calculateStorageStats()" style="width: 100%; background: #3b82f6; font-weight: bold; padding: 12px; border-radius: 8px;">🔄 Refresh Storage Audit</button>
+                    </div>
+                </div>
+
+                <div class="settings-card" style="border-top: 4px solid #8b5cf6;">
+                    <div class="settings-card-header">
+                        <h3>📦 Collection Density</h3>
+                        <p>Segmented breakdown of your largest cloud datasets.</p>
+                    </div>
+                    <div id="storage-breakdown-list" style="display: flex; flex-direction: column; gap: 12px;"></div>
+                    <div style="margin-top: 20px; font-size: 0.75rem; color: var(--text-muted); display:flex; align-items:center; gap:8px;">
+                        <span>🛡️</span> 
+                        <span>Data is encrypted at-rest in Firebase Cloud Firestore. Physical storage includes metadata overhead.</span>
+                    </div>
+                </div>
+
+                <!-- SYSTEM HEALTH DOCTOR BLOCK -->
+                <div class="settings-card" style="grid-column: span 2; border-top: 4px solid #06b6d4; background: linear-gradient(to bottom, #f0f9ff, #ffffff);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <div>
+                            <h3 style="margin:0; display:flex; align-items:center; gap:10px;">🩺 System Health Doctor <span id="diag-summary-count" style="background:#e11d48; color:white; padding:2px 8px; border-radius:10px; font-size:0.75rem;">0</span></h3>
+                            <p style="margin:5px 0 0 0; color:#475569; font-size:0.85rem;">Deep database integrity audit for orphans, anomalies, and schema breaks.</p>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button onclick="runSystemDiagnostic()" style="background:#0891b2; font-weight:bold; padding:8px 15px; border-radius:6px; font-size:0.85rem;">🔍 Run Diagnostic</button>
+                            <button onclick="repairOrphans()" style="background:#0d9488; font-weight:bold; padding:8px 15px; border-radius:6px; font-size:0.85rem;">🛠️ Auto-Repair Links</button>
+                        </div>
+                    </div>
+                    
+                    <div id="diag-results-list" style="max-height: 300px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; padding: 15px; background: white;">
+                        <div style="text-align:center; padding:30px; color:var(--text-muted);">
+                            <p>Press "Run Diagnostic" to scan for data inconsistencies.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<div id="csv-preview-modal" class="hidden modal-overlay" style="display: none;">
+    <div class="card" style="width: 90%; max-width: 900px; background: var(--surface); padding: 25px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 15px;">
+            <h3 style="margin: 0; color: var(--primary);">👀 Audit CSV Data Before Import</h3>
+            <button type="button" class="secondary" style="border:none; padding:5px 10px;" onclick="closeCSVPreview()">✕</button>
+        </div>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 15px;">Please review the data extracted from your CSV. If everything looks correct, click 'Confirm & Import'.</p>
+        
+        <div style="overflow-x: auto; max-height: 400px; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 20px;">
+            <table id="csv-preview-table" style="width: 100%; border-collapse: collapse; font-size: 0.85rem; white-space: nowrap;">
+                <thead style="background: var(--bg); position: sticky; top: 0; z-index: 10;">
+                    </thead>
+                <tbody>
+                    </tbody>
+            </table>
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 10px;">
+            <button type="button" class="secondary" onclick="closeCSVPreview()">Cancel</button>
+            <button type="button" style="background: var(--success); color: white; border: none; padding: 8px 15px; font-weight: bold; border-radius: 6px;" onclick="confirmCSVImport()">✅ Confirm & Import Data</button>
+        </div>
+    </div>
+</div>
+</div>
+
+
+

@@ -1,0 +1,129 @@
+<div id="lc-manager" class="main-tab">
+    
+    <div class="card" style="margin-bottom: 20px; border-top: 4px solid var(--primary);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <h3 style="margin: 0;">🏦 Bank LC Facility Limit Tracker</h3>
+            
+            <div style="display: flex; align-items: center; gap: 10px; font-size: 0.85rem;">
+                <label style="margin: 0; color: var(--text-muted); font-weight: bold;">Set Total Bank Limit (USD):</label>
+                <input type="number" id="global-lc-limit" placeholder="e.g. 500000" onchange="updateLCLimit()" style="margin: 0; width: 150px; padding: 4px 8px; font-weight: bold; color: var(--primary);">
+            </div>
+        </div>
+        
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 15px;">Monitor your active trade credit exposure to prevent bounced shipments and facility overdrafts.</p>
+
+        <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 0.9rem; margin-bottom: 8px;">
+            <span>Utilized: <span id="lc-utilized-text" style="color: var(--danger);">$0</span></span>
+            <span>Available Balance: <span id="lc-available-text" style="color: var(--success);">$0</span></span>
+        </div>
+        
+        <div style="width: 100%; height: 12px; background: var(--border); border-radius: 6px; overflow: hidden; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);">
+            <div id="lc-limit-bar" style="height: 100%; width: 0%; background: var(--success); transition: width 0.5s ease-out, background-color 0.5s;"></div>
+        </div>
+    </div>
+
+    <div class="grid-2">
+        <div class="card">
+            <h3>Add New Letter of Credit (LC)</h3>
+            <form id="lc-form" onsubmit="addLC(event)">
+                <div class="grid-2">
+                    <div>
+                        <label>LC Number</label>
+                        <input type="text" id="lc-no" required>
+                    </div>
+                    <div>
+                        <label>Issuing Bank</label>
+                        <input type="text" id="lc-bank" required>
+                    </div>
+                    <div>
+                        <label>Currency</label>
+                        <select id="lc-currency">
+                            <option value="USD">USD</option>
+                            <option value="EUR">EUR</option>
+                            <option value="GBP">GBP</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Amount</label>
+                        <input type="number" step="0.01" id="lc-amount" required>
+                    </div>
+                    <div>
+                        <label>Issue Date</label>
+                        <input type="date" id="lc-issue" required>
+                    </div>
+                    <div>
+                        <label>Expiry Date</label>
+                        <input type="date" id="lc-exp" required>
+                    </div>
+                    <div style="grid-column: span 2;">
+                        <label>Applicant (Buyer)</label>
+                        <input type="text" id="lc-applicant" required>
+                    </div>
+                    <div>
+                        <label>Latest Shipment Date</label>
+                        <input type="date" id="lc-ship-date">
+                    </div>
+                    <div>
+                        <label>Tolerance (+/- %)</label>
+                        <input type="number" id="lc-tolerance" placeholder="e.g. 5">
+                    </div>
+                    <div style="grid-column: span 2;">
+                        <label>Status</label>
+                        <select id="lc-status">
+                            <option value="Draft/Received">Draft / Received</option>
+                            <option value="Accepted">Accepted by Bank</option>
+                            <option value="Docs Submitted">Docs Submitted (Negotiation)</option>
+                            <option value="Discrepant">Discrepant</option>
+                            <option value="Settled">Settled / Paid</option>
+                            <option value="Expired">Expired</option>
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" style="margin-top: 15px; width: 100%;">💾 Save LC Record</button>
+            </form>
+        </div>
+
+        <div class="card" style="background: var(--bg); border-left: 4px solid var(--info);">
+            <h3>LC Presentation Checklist</h3>
+            <p style="font-size: 0.85rem; color: var(--text-muted);">Standard UCP 600 requirements for bank negotiation.</p>
+            <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 15px;">
+                <label style="display: flex; align-items: center; gap: 10px;"><input type="checkbox" style="width: 18px; height: 18px;"> Commercial Invoice (3 Originals)</label>
+                <label style="display: flex; align-items: center; gap: 10px;"><input type="checkbox" style="width: 18px; height: 18px;"> Full Set Clean On Board Bill of Lading (B/L)</label>
+                <label style="display: flex; align-items: center; gap: 10px;"><input type="checkbox" style="width: 18px; height: 18px;"> Packing List</label>
+                <label style="display: flex; align-items: center; gap: 10px;"><input type="checkbox" style="width: 18px; height: 18px;"> Certificate of Origin (Chamber of Commerce)</label>
+                <label style="display: flex; align-items: center; gap: 10px;"><input type="checkbox" style="width: 18px; height: 18px;"> Phytosanitary Certificate</label>
+                <label style="display: flex; align-items: center; gap: 10px;"><input type="checkbox" style="width: 18px; height: 18px;"> Insurance Certificate / Policy (110% CIF Value)</label>
+                <label style="display: flex; align-items: center; gap: 10px;"><input type="checkbox" style="width: 18px; height: 18px;"> Beneficiary Certificate</label>
+            </div>
+            <div style="margin-top: 20px; padding: 15px; background: var(--surface); border-radius: 4px; border: 1px dashed var(--danger);">
+                <strong style="color: var(--danger); font-size: 0.9rem;">⚠️ Critical Warning:</strong>
+                <p style="margin: 5px 0 0 0; font-size: 0.8rem; color: var(--text-muted);">Ensure all document dates are strictly ON or BEFORE the "Latest Shipment Date" defined in the LC UCP600 clause.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="card" style="margin-top: 20px;">
+        <h3>Active LC Master Ledger</h3>
+        <div style="overflow-x: auto;">
+            <table id="lc-table">
+                <thead>
+                    <tr>
+                        <th>LC Number</th>
+                        <th>Applicant (Buyer)</th>
+                        <th>Bank</th>
+                        <th>Value</th>
+                        <th>Issue Date</th>
+                        <th>Expiry Date</th>
+                        <th>Days Left</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+
+

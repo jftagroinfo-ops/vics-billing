@@ -1,0 +1,1283 @@
+<style>
+    /* REPLICATED FILTER STYLING - STRICT SINGLE LINE */
+    .ledger-filter-box {
+        background-color: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 15px 20px;
+        display: flex;
+        justify-content: flex-start;
+        align-items: flex-end;
+        margin-bottom: 20px;
+        flex-wrap: nowrap; 
+        gap: 12px;
+        overflow-x: auto; 
+    }
+    .ledger-filter-item {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        flex-shrink: 0;
+    }
+    .ledger-filter-label {
+        font-size: 0.75rem;
+        font-weight: 800;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        white-space: nowrap;
+    }
+    .ledger-filter-input {
+        padding: 8px 12px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        font-size: 0.9rem;
+        background: var(--surface);
+        color: var(--text);
+        outline: none;
+        box-sizing: border-box;
+        height: 38px;
+    }
+    .ledger-filter-btn {
+        height: 38px;
+        border: 1px solid var(--border);
+        background: var(--surface);
+        border-radius: 6px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: 0.2s;
+        flex-shrink: 0;
+    }
+    .ledger-filter-btn:hover {
+        background: var(--bg);
+    }
+    
+    /* DOSSIER TABLE FIXES */
+    .dossier-inner-table {
+        width: 100%;
+        font-size: 0.85rem;
+        border-collapse: collapse;
+        table-layout: fixed;
+    }
+    .dossier-inner-table th, .dossier-inner-table td {
+        padding: 10px;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+    }
+</style>
+
+<div id="finance" class="main-tab">
+    <div class="sticky-sub-nav">
+        <button class="sub-tab-btn active" id="btn-fin-exp" onclick="switchFinanceTab('exp')">💸 Log Expenses</button>
+        <button class="sub-tab-btn" id="btn-fin-forex" onclick="switchFinanceTab('forex')">💱 Forex Realization</button>
+        <button class="sub-tab-btn" id="btn-fin-compliance" onclick="switchFinanceTab('compliance')" style="border-bottom: 2px solid var(--primary); font-weight: bold; color: var(--primary);">🛡️ Post-Shipment Compliance</button>
+        <button class="sub-tab-btn" id="btn-fin-hedge" onclick="switchFinanceTab('hedge')">🛡️ Forex Hedging</button>
+        <button class="sub-tab-btn" id="btn-fin-aging" onclick="switchFinanceTab('aging')">⏳ Aging & Receivables</button>
+        <button class="sub-tab-btn" id="btn-fin-cashflow" onclick="switchFinanceTab('cashflow')" style="border: 2px solid var(--primary); font-weight: bold; color: var(--primary);">🤖 AI 90-Day Forecast</button>
+        <button class="sub-tab-btn" id="btn-fin-pnl" onclick="switchFinanceTab('pnl')">📊 Global PnL</button>
+        <button class="sub-tab-btn" id="btn-fin-dossier" onclick="switchFinanceTab('dossier')">📂 360° Shipment Dossier</button>
+        <button class="sub-tab-btn" id="btn-fin-stress" onclick="isFinUserAdmin() ? switchFinanceTab('stress') : Enterprise.notify('Restricted to Admin', 'danger')" style="border: 2px solid var(--primary); font-weight: 800;">🏗️ FX Stress Tester</button>
+    </div>
+
+    <div id="fin-exp-tab" class="finance-container">
+        <div class="card">
+            <div style="grid-column: span 4; background: rgba(99, 102, 241, 0.05); border: 1px dashed #6366f1; padding: 15px; border-radius: 8px; margin-bottom: 25px; display: flex; gap: 15px; align-items: center;">
+                <div style="font-size: 2rem;">🤖</div>
+                <div style="flex-grow: 1;">
+                    <h4 style="margin: 0 0 5px 0; color: #4338ca;">AI Smart Scan (OCR)</h4>
+                    <p style="margin: 0; font-size: 0.8rem; color: #6366f1;">Upload a vendor bill or transport receipt. The AI will read the document and auto-fill the highest amount.</p>
+                </div>
+                <input type="file" id="ai-bill-upload" accept="image/*" style="width: auto; margin: 0;">
+                <button type="button" id="btn-ai-scan" onclick="runAIBillScan()" style="background: #4f46e5; margin: 0; white-space: nowrap;">✨ Scan Document</button>
+            </div>
+
+            <h3 style="margin-top: 0;">Log New Expense</h3>
+            <form id="expense-form" onsubmit="addExpense(event)">
+                <div class="grid-4">
+                    <div><label>Date</label><input type="date" id="exp-date" required onchange="autoFillFY()"></div>
+                    <div><label>Financial Year</label><input type="text" id="exp-fy" readonly style="background: var(--bg);"></div>
+                    <div><label>Category</label>
+                        <select id="exp-cat" required>
+                            <option value="Freight">Freight (Ocean/Air)</option>
+                            <option value="Transport">Inland Transport</option>
+                            <option value="CHA">Customs / CHA</option>
+                            <option value="Terminal">Terminal / Port Handling</option>
+                            <option value="Procurement">Raw Material Sourcing</option>
+                            <option value="Packaging">Packaging</option>
+                            <option value="Inspection">Inspection (SGS, etc)</option>
+                            <option value="Bank">Bank Charges</option>
+                            <option value="Office">Office Admin</option>
+                        </select>
+                    </div>
+                    <div><label>Invoice Ref Mapping</label><select id="exp-ref"></select></div>
+                    
+                    <div style="grid-column: span 2;">
+                        <label style="display: flex; justify-content: space-between; align-items: flex-end;">
+                            Party / Vendor Name
+                            <button type="button" class="secondary" style="font-size:0.75rem; padding:2px 8px; margin:0;" onclick="openVendorBook()">📒 Vendor Book</button>
+                        </label>
+                        <input type="text" id="exp-party" required>
+                    </div>
+
+                    <div style="grid-column: span 2;"><label>Vendor Bill/Inv No</label><input type="text" id="exp-inv-no"></div>
+                    <div><label>Basic Amount (₹)</label><input type="number" step="0.01" id="exp-amt" required></div>
+                    <div><label>GST Amount (₹)</label><input type="number" step="0.01" id="exp-gst" value="0"></div>
+                    <div><label>TDS Deduction (₹)</label><input type="number" step="0.01" id="exp-tds" value="0"></div>
+                    <div><label>Status</label>
+                        <select id="exp-status" onchange="togglePaymentFields()">
+                            <option value="Unpaid">Unpaid / Pending</option>
+                            <option value="Paid">Paid</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div id="payment-fields" class="hidden grid-2" style="background: var(--bg); padding:15px; border-radius:4px; margin-top:15px; border:1px solid var(--border);">
+                    <div><label>Payment Date</label><input type="date" id="exp-pay-date"></div>
+                    <div><label>Payment Ref (UTR/Cheque)</label><input type="text" id="exp-pay-ref"></div>
+                </div>
+                
+                <div class="grid-2" style="margin-top: 15px;">
+                    <div>
+                        <label>Remarks</label>
+                        <input type="text" id="exp-remarks" placeholder="Optional notes...">
+                    </div>
+                    <div>
+                        <label>📎 Digital Receipt Link (Drive/Dropbox URL)</label>
+                        <input type="url" id="exp-receipt" placeholder="https://drive.google.com/file/d/..." style="border: 1px dashed var(--primary);">
+                    </div>
+                </div>
+                
+                <button type="submit" style="margin-top: 15px; width: 100%;">💾 Save Expense</button>
+            </form>
+        </div>
+
+        <div class="card" style="margin-top: 20px;">
+            <h3>Expense Ledger</h3>
+            
+            <div class="ledger-filter-box">
+                <div class="ledger-filter-item">
+                    <span class="ledger-filter-label">FINANCIAL YEAR</span>
+                    <select class="ledger-filter-input" id="filter-fy-exp" onchange="renderPnL()" style="width: 120px;">
+                        <option value="">All Years</option>
+                    </select>
+                </div>
+                <div class="ledger-filter-item">
+                    <span class="ledger-filter-label">DATE FROM</span>
+                    <input type="date" class="ledger-filter-input" id="filter-date-from-exp" onchange="renderPnL()" style="width: 130px;">
+                </div>
+                <div class="ledger-filter-item">
+                    <span class="ledger-filter-label">DATE TO</span>
+                    <input type="date" class="ledger-filter-input" id="filter-date-to-exp" onchange="renderPnL()" style="width: 130px;">
+                </div>
+                <div class="ledger-filter-item">
+                    <span class="ledger-filter-label">INVOICE REF</span>
+                    <select class="ledger-filter-input" id="filter-invoice-exp" onchange="renderPnL()" style="width: 140px;">
+                        <option value="">All Invoices</option>
+                    </select>
+                </div>
+                <div class="ledger-filter-item" style="flex: 1; min-width: 150px;">
+                    <span class="ledger-filter-label">SEARCH</span>
+                    <input type="text" class="ledger-filter-input" id="filter-search-exp" placeholder="Search records..." oninput="renderPnL()" style="width: 100%;">
+                </div>
+                <div class="ledger-filter-item">
+                    <span class="ledger-filter-label">SHOW DETAILS</span>
+                    <select class="ledger-filter-input" id="filter-limit-exp" onchange="renderPnL()" style="width: 90px;">
+                        <option value="25" selected>25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                        <option value="999999">All</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: 8px; flex-shrink: 0;">
+                    <button type="button" class="ledger-filter-btn" style="color: #ef4444; width: 38px; padding: 0; font-size: 1.2rem;" title="Reset Filters" onclick="if(typeof resetFinanceFilters === 'function') resetFinanceFilters('exp')">✖</button>
+                    <button type="button" class="ledger-filter-btn" style="width: 38px; padding: 0; font-size: 1.2rem;" title="Download CSV" onclick="if(typeof exportFinanceFiltered === 'function') exportFinanceFiltered('exp')">📥</button>
+                </div>
+            </div>
+
+            <div style="overflow-x: auto;">
+                <table id="pnl-table">
+                    <thead><tr></tr></thead>
+                    <tbody></tbody>
+                    <tfoot>
+                        <tr style="background-color: var(--bg); font-weight: bold;">
+                            <td colspan="4" style="text-align: right;">TOTAL:</td>
+                            <td id="exp-tot-basic">₹0.00</td>
+                            <td id="exp-tot-gst">₹0.00</td>
+                            <td id="exp-tot-total" style="color:var(--danger);">₹0.00</td>
+                            <td colspan="2"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="fin-compliance-tab" class="finance-container hidden">
+        <div class="grid-4" style="margin-bottom: 25px;">
+            <div class="card" style="border-bottom: 4px solid var(--danger);">
+                <label>BRC OVERDUE (>270D)</label>
+                <h2 id="comp-kpi-overdue" style="margin:0; color:var(--danger);">$0</h2>
+                <small id="comp-kpi-overdue-count" style="color:var(--text-muted);">0 Shipping Bills at Risk</small>
+            </div>
+            <div class="card" style="border-bottom: 4px solid var(--warning);">
+                <label>PENDING SHIPMENT (LEO)</label>
+                <h2 id="comp-kpi-pending" style="margin:0; color:var(--warning);">$0</h2>
+                <small style="color:var(--text-muted);">Awaiting Export Confirmation</small>
+            </div>
+            <div class="card" style="border-bottom: 4px solid var(--success);">
+                <label>REALIZED & COMPLIANT</label>
+                <h2 id="comp-kpi-realized" style="margin:0; color:var(--success);">$0</h2>
+                <small style="color:var(--text-muted);">Successful BRC Closure</small>
+            </div>
+            <div class="card" style="border-bottom: 4px solid var(--info);">
+                <label>EST. GST REFUND (IGST)</label>
+                <h2 id="comp-kpi-gst" style="margin:0; color:var(--info);">₹0</h2>
+                <small style="color:var(--text-muted);">Based on Realized SBs</small>
+            </div>
+        </div>
+
+        <div class="card">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <h3 style="margin:0;">🛡️ Post-Shipment Compliance & EDM Registry</h3>
+                <div style="display:flex; gap:10px;">
+                    <button class="secondary" onclick="syncICEGATEStatus()">🔄 Sync ICEGATE (Mock)</button>
+                    <button onclick="openAddComplianceModal()">➕ Log SB Compliance</button>
+                </div>
+            </div>
+
+            <div class="ledger-filter-box">
+                <div class="ledger-filter-item">
+                    <span class="ledger-filter-label">BRC STATUS</span>
+                    <select class="ledger-filter-input" id="filter-compliance-status" onchange="renderComplianceTable()">
+                        <option value="">All Statuses</option>
+                        <option value="Overdue">🔴 Overdue (>270D)</option>
+                        <option value="Warning">🟡 Warning (>180D)</option>
+                        <option value="Pending">🔵 Pending Realization</option>
+                        <option value="Realized">🟢 Realized (e-BRC Closed)</option>
+                    </select>
+                </div>
+                <div class="ledger-filter-item" style="flex:1;">
+                    <span class="ledger-filter-label">SEARCH SB / CLIENT / INVOICE</span>
+                    <input type="text" class="ledger-filter-input" id="filter-compliance-search" placeholder="Enter SB No or Ref..." oninput="renderComplianceTable()" style="width:100%;">
+                </div>
+            </div>
+
+            <div style="overflow-x:auto;">
+                <table id="compliance-table" class="dossier-inner-table">
+                    <thead>
+                        <tr style="background:var(--bg); border-bottom:2px solid var(--border);">
+                            <th style="width:150px;">SB Details</th>
+                            <th>Invoice / Client</th>
+                            <th style="width:100px; text-align:center;">Date / Age</th>
+                            <th style="width:120px; text-align:center;">ICEGATE Status</th>
+                            <th style="width:150px; text-align:right;">Realization (USD)</th>
+                            <th style="width:120px; text-align:center;">BRC Status</th>
+                            <th style="width:80px; text-align:center;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Dynamic Content -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="fin-forex-tab" class="finance-container hidden">
+        <!-- AI FOREX HEDGING ADVISOR -->
+        <div id="forex-advisor-box" style="display:none; background: linear-gradient(135deg, #1e293b, #0f172a); border: 2px solid #334155; border-radius: 12px; padding: 25px; margin-bottom: 25px; color: white; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
+            <div style="display: flex; gap: 20px; align-items: center;">
+                <div style="font-size: 3rem; background: rgba(59, 130, 246, 0.1); width: 70px; height: 70px; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: 1px solid rgba(59, 130, 246, 0.3);">🧠</div>
+                <div style="flex: 1;">
+                    <h3 style="margin: 0; color: #3b82f6; display: flex; align-items: center; gap: 10px;">Forex Risk & Hedging Intelligence <span style="background: #3b82f6; color: white; font-size: 0.65rem; padding: 2px 8px; border-radius: 20px; letter-spacing: 1px; font-weight: 800;">LIVE AUDIT</span></h3>
+                    <p id="forex-advisor-text" style="margin: 10px 0 0 0; font-size: 1rem; color: #cbd5e1; line-height: 1.6;"></p>
+                </div>
+                <button type="button" class="secondary" style="border-color: #3b82f6; color: #3b82f6; background: rgba(59, 130, 246, 0.05); padding: 10px 20px; font-weight: bold; height: auto;" onclick="window.runForexAdvisor()">🔄 Re-Analyze Exposure</button>
+            </div>
+        </div>
+
+        <div class="card" style="border-top: 4px solid var(--success);">
+            <h3>💱 Log Bank Realization & e-BRC</h3>
+            <form id="forex-form" onsubmit="addForexEntry(event)">
+                <div class="grid-4">
+                    <div style="grid-column: span 2;">
+                        <label>Select Commercial Invoice</label>
+                        <select id="forex-inv" required onchange="autoFillForexDetails()"></select>
+                    </div>
+                    <div style="grid-column: span 2;">
+                        <label>Expected Amount (From Invoice)</label>
+                        <input type="number" step="0.01" id="forex-exp-amt" readonly style="background: var(--bg); color:var(--text-muted);" inputmode="decimal">
+                    </div>
+                    <div><label>Realization Date</label><input type="date" id="forex-date" required></div>
+                    <div><label>Realized FCY (e.g. USD)</label><input type="number" step="0.01" id="forex-real-fcy" required oninput="calcHedgeWarning()" inputmode="decimal"></div>
+                    
+                    <div>
+                        <label style="color: var(--primary);">Invoice Book Rate (₹)</label>
+                        <input type="number" step="0.0001" id="forex-inv-rate" placeholder="e.g. 83.50" required style="border-color: var(--primary);">
+                    </div>
+
+                    <div style="position: relative; grid-column: span 2;">
+                        <label>Actual Bank Rate / Hedge Contract Selection</label>
+                        <div style="display:flex; gap:5px;">
+                            <input type="number" step="0.0001" id="forex-rate" required style="width: 50%; border-radius: 4px; border: 1px solid var(--border); padding: 8px;">
+                            <select id="forex-hedge-select" onchange="applyHedgeRate()" style="width: 50%; border-radius: 4px; border: 1px solid var(--primary); background: rgba(59, 130, 246, 0.05); font-size:0.8rem; padding: 8px;">
+                                <option value="">-- Manual/Live Rate --</option>
+                            </select>
+                            <button type="button" class="secondary" title="Fetch Live Rate" onclick="fetchLiveForexRate('forex-rate')" style="padding: 0 10px; border-radius: 4px;">🔄 Live</button>
+                        </div>
+                        <small id="hedge-warn-txt" style="color:var(--danger); font-size:0.7rem; font-weight:bold; display:none; position:absolute; bottom:-18px; left:0;"></small>
+                    </div>
+                    
+                    <div><label>Realized INR (₹)</label><input type="number" step="0.01" id="forex-real-inr" required></div>
+                    <div><label>Bank Charges (₹)</label><input type="number" step="0.01" id="forex-charges" value="0"></div>
+                    <div><label>e-BRC Number</label><input type="text" id="forex-ebrc" placeholder="Optional for now"></div>
+                    <div><label>e-BRC Date</label><input type="date" id="forex-ebrc-date"></div>
+                </div>
+                <button type="submit" style="margin-top: 15px; background: var(--success); width: 100%;">💾 Log Realization & Auto-Knockoff Invoice</button>
+            </form>
+        </div>
+
+        <div class="card" style="margin-top: 20px;">
+            <h3>Forex Ledger & Delta Analysis</h3>
+            <div class="ledger-filter-box">
+                <div class="ledger-filter-item">
+                    <span class="ledger-filter-label">FINANCIAL YEAR</span>
+                    <select class="ledger-filter-input" id="filter-fy-forex" onchange="renderForexTable()" style="width: 120px;">
+                        <option value="">All Years</option>
+                    </select>
+                </div>
+                <div class="ledger-filter-item">
+                    <span class="ledger-filter-label">DATE FROM</span>
+                    <input type="date" class="ledger-filter-input" id="filter-date-from-forex" onchange="renderForexTable()" style="width: 130px;">
+                </div>
+                <div class="ledger-filter-item">
+                    <span class="ledger-filter-label">DATE TO</span>
+                    <input type="date" class="ledger-filter-input" id="filter-date-to-forex" onchange="renderForexTable()" style="width: 130px;">
+                </div>
+                <div class="ledger-filter-item" style="flex: 1; min-width: 150px;">
+                    <span class="ledger-filter-label">SEARCH</span>
+                    <input type="text" class="ledger-filter-input" id="filter-search-forex" placeholder="Search records..." oninput="renderForexTable()" style="width: 100%;">
+                </div>
+                <div class="ledger-filter-item">
+                    <span class="ledger-filter-label">SHOW DETAILS</span>
+                    <select class="ledger-filter-input" id="filter-limit-forex" onchange="renderForexTable()" style="width: 90px;">
+                        <option value="25" selected>25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                        <option value="999999">All</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: 8px; flex-shrink: 0;">
+                    <button type="button" class="ledger-filter-btn" style="color: #ef4444; width: 38px; padding: 0; font-size: 1.2rem;" title="Reset Filters" onclick="if(typeof resetFinanceFilters === 'function') resetFinanceFilters('forex')">✖</button>
+                    <button type="button" class="ledger-filter-btn" style="width: 38px; padding: 0; font-size: 1.2rem;" title="Download CSV" onclick="if(typeof exportFinanceFiltered === 'function') exportFinanceFiltered('forex')">📥</button>
+                </div>
+            </div>
+
+            <div style="overflow-x: auto;">
+                <table id="forex-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Inv Ref</th>
+                            <th>Realized FCY</th>
+                            <th>Bank/Hedge Rate</th>
+                            <th>Realized INR</th>
+                            <th>e-BRC No</th>
+                            <th>Forex Gain/Loss</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                    <tfoot>
+                        <tr style="background-color: var(--bg); font-weight: bold;">
+                            <td colspan="2" style="text-align: right;">TOTAL:</td>
+                            <td id="forex-tot-fcy" style="color:var(--primary);">0.00</td>
+                            <td></td>
+                            <td id="forex-tot-inr" style="color:var(--success);">₹0.00</td>
+                            <td></td>
+                            <td id="forex-tot-pnl">₹0.00</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- NEW: POST-SHIPMENT COMPLIANCE & E-BRC REGISTRY -->
+    <div id="fin-compliance-tab" class="finance-container hidden">
+        <div style="background: linear-gradient(135deg, #0f172a 0%, #172554 100%); padding: 25px; border-radius: 12px; margin-bottom: 25px; border: 1px solid rgba(59, 130, 246, 0.2); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); position: relative; overflow: hidden;">
+            <div style="position: absolute; right: -20px; top: -20px; font-size: 8rem; opacity: 0.05; pointer-events: none;">🛡️</div>
+            
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 25px;">
+                <div>
+                    <h2 style="margin: 0; color: #f8fafc; font-size: 1.6rem; display: flex; align-items: center; gap: 12px;">
+                        <span>🛡️ Post-Shipment Compliance & e-BRC Registry</span>
+                        <span style="background: #3b82f6; color: white; font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; letter-spacing: 1px; font-weight: 800;">RBI 270-DAY WATCHDOG</span>
+                    </h2>
+                    <p style="margin: 5px 0 0 0; color: #94a3b8; font-size: 0.9rem;">Regulatory tracking of Shipping Bills, LEO dates, and Realization timelines.</p>
+                </div>
+                <div style="text-align: right;">
+                    <button class="primary" style="background: #2563eb; border: none; font-weight: bold; padding: 10px 18px;" onclick="syncICEGATEStatus()">🔄 Sync ICEGATE / EDM Data</button>
+                    <div style="font-size: 0.65rem; color: #64748b; margin-top: 8px;">ICEGATE API: <span style="color:#10b981; font-weight:bold;">CONNECTED</span></div>
+                </div>
+            </div>
+
+            <div class="grid-4" style="gap: 15px;">
+                <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 15px; text-align: center;">
+                    <div style="color: #94a3b8; font-size: 0.75rem; font-weight: bold; text-transform: uppercase;">RBI 270-Day Overdue</div>
+                    <div id="comp-kpi-overdue" style="font-size: 1.6rem; font-weight: 900; color: #ef4444;">₹ 0.00 L</div>
+                    <div style="font-size: 0.7rem; color: #64748b; margin-top: 5px;">EDPMS Unreconciled</div>
+                </div>
+                <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 15px; text-align: center;">
+                    <div style="color: #94a3b8; font-size: 0.75rem; font-weight: bold; text-transform: uppercase;">Total Active FCY Outstanding</div>
+                    <div id="comp-kpi-outstanding" style="font-size: 1.6rem; font-weight: 900; color: #f1f5f9;">$ 0.00</div>
+                    <div style="font-size: 0.7rem; color: #64748b; margin-top: 5px;">Across all open Export SBs</div>
+                </div>
+                <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 15px; text-align: center;">
+                    <div style="color: #94a3b8; font-size: 0.75rem; font-weight: bold; text-transform: uppercase;">e-BRC Pending Count</div>
+                    <div id="comp-kpi-pending" style="font-size: 1.6rem; font-weight: 900; color: #f59e0b;">0</div>
+                    <div style="font-size: 0.7rem; color: #64748b; margin-top: 5px;">Bank Bank Realizations vs SBs</div>
+                </div>
+                <div style="background: rgba(16,185,129,0.1); border: 1px solid #10b981; border-radius: 10px; padding: 15px; text-align: center;">
+                    <div style="color: #10b981; font-size: 0.75rem; font-weight: bold; text-transform: uppercase;">Compliance Health</div>
+                    <div style="font-size: 1.6rem; font-weight: 900; color: #f1f5f9;">100%</div>
+                    <div style="font-size: 0.7rem; color: #10b981; margin-top: 5px; font-weight: bold;">0 DELINQUENT SBs</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="margin: 0;">Export Compliance Matrix</h3>
+                <div style="display: flex; gap: 10px;">
+                    <button class="secondary" onclick="exportComplianceReport()">📥 Export RBI Report</button>
+                    <button class="secondary" title="Filters" onclick="toggleComplianceFilters()">🔍</button>
+                </div>
+            </div>
+
+            <div style="overflow-x: auto;">
+                <table id="compliance-table">
+                    <thead>
+                        <tr>
+                            <th>Shipping Bill No / Date</th>
+                            <th>LEO Date</th>
+                            <th>Inv Ref</th>
+                            <th>Buyer</th>
+                            <th>FOB Value (FCY)</th>
+                            <th>Realized (FCY)</th>
+                            <th>RBI Aging (Clock)</th>
+                            <th>e-BRC Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="fin-hedge-tab" class="finance-container hidden">
+        <!-- Sub-navigation for Hedging -->
+        <div style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">
+            <button class="sub-tab-btn active" id="btn-hedge-main" onclick="switchHedgeSubTab('main')">💎 Active Coverage</button>
+            <button class="sub-tab-btn" id="btn-hedge-advisor" onclick="switchHedgeSubTab('advisor')">🌍 Forex Advisory (MAFAE)</button>
+        </div>
+
+        <div id="hedge-sub-main">
+            <!-- Existing Content for Coverage -->
+            <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); padding: 25px; border-radius: 12px; margin-bottom: 25px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.2); position: relative; overflow: hidden;">
+            <div style="position: absolute; right: -20px; top: -20px; font-size: 8rem; opacity: 0.05; pointer-events: none;">🛡️</div>
+            
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
+                <div>
+                    <h2 style="margin: 0; color: #f8fafc; font-size: 1.6rem; display: flex; align-items: center; gap: 10px;">
+                        <span>💎 Intelligent Forex Profit Advisor</span>
+                        <span style="background: #22c55e; color: white; font-size: 0.75rem; padding: 2px 8px; border-radius: 4px; letter-spacing: 1px;">LIVE AI ENGINE</span>
+                    </h2>
+                    <p style="margin: 5px 0 0 0; color: #94a3b8; font-size: 0.9rem;">Real-time market insights & hedging opportunity analysis.</p>
+                </div>
+                <div style="text-align: right;">
+                    <div id="live-fx-price" style="font-family: monospace; font-size: 1.4rem; font-weight: bold; color: #3b82f6;">USD/INR: ₹--.--</div>
+                    <div id="fx-last-update" style="font-size: 0.7rem; color: #64748b; margin-top: 5px;">Fetching market data...</div>
+                </div>
+            </div>
+
+            <div class="grid-3" style="margin-top: 10px; gap: 20px;">
+                <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 15px;">
+                    <div style="color: #94a3b8; font-size: 0.8rem; font-weight: bold; text-transform: uppercase; margin-bottom: 10px;">Risk Profile: Uncovered Exposure</div>
+                    <div style="display: flex; align-items: baseline; gap: 8px;">
+                        <span id="ai-uncovered-val" style="font-size: 1.6rem; font-weight: bold; color: #f1f5f9;">$0</span>
+                        <span style="color: #ef4444; font-size: 0.85rem; font-weight: bold;">(Open Invoices)</span>
+                    </div>
+                    <div style="height: 6px; background: #334155; border-radius: 3px; margin-top: 15px; position: relative; overflow: hidden;">
+                        <div id="hedge-bar-progress" style="height: 100%; background: #3b82f6; width: 0%; transition: 0.8s ease;"></div>
+                    </div>
+                    <div id="hedge-cover-text" style="color: #64748b; font-size: 0.75rem; margin-top: 8px;">0% Risk Hedged. You are 100% exposed to market drops.</div>
+                </div>
+
+                <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 15px;">
+                    <div style="color: #94a3b8; font-size: 0.8rem; font-weight: bold; text-transform: uppercase; margin-bottom: 10px;">Market Opportunity (P/L)</div>
+                    <div style="display: flex; align-items: baseline; gap: 8px;">
+                        <span id="fx-opportunity-val" style="font-size: 1.6rem; font-weight: bold; color: #22c55e;">₹0.00</span>
+                        <span style="color: #94a3b8; font-size: 0.85rem;">/ USD gain</span>
+                    </div>
+                    <div style="margin-top: 15px; background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.2); border-radius: 6px; padding: 10px; display: flex; align-items: center; gap: 10px;">
+                        <div style="color: #22c55e; font-size: 1.2rem;">📈</div>
+                        <div id="fx-opportunity-desc" style="color: #f8fafc; font-size: 0.85rem; line-height: 1.2;">Market rate is currently ₹0.45 better than your avg hedge.</div>
+                    </div>
+                </div>
+
+                <div style="background: rgba(59, 130, 246, 0.1); border: 2px solid #3b82f6; border-radius: 10px; padding: 15px; display: flex; flex-direction: column; justify-content: space-between;">
+                    <div style="color: #3b82f6; font-size: 0.8rem; font-weight: bold; text-transform: uppercase;">💼 AI Strategy Suggestion</div>
+                    <div id="fx-ai-advise" style="color: #f1f5f9; font-size: 1rem; font-weight: 500; line-height: 1.3; margin: 10px 0;">
+                        Analyze pending docs and market trends to provide strategy...
+                    </div>
+                    <button class="secondary" style="background: #3b82f6; border: none; color: white; width: 100%; font-weight: bold;" onclick="autoPlanHedging()">Execute Optimization</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid-4" style="margin-bottom: 20px;">
+            <div class="card" style="text-align: center; border-top: 3px solid var(--danger);">
+                <div style="font-size: 0.85rem; color: var(--text-muted); font-weight:bold; text-transform: uppercase;">Open Invoice Exposure</div>
+                <div id="hedge-kpi-exposure" style="font-size: 1.8rem; font-weight: bold; color: var(--danger);">$0</div>
+                <div style="font-size: 0.75rem; color: var(--text-muted); margin-top:5px;">Total Unpaid Invoices</div>
+            </div>
+            <div class="card" style="text-align: center; border-top: 3px solid var(--primary);">
+                <div style="font-size: 0.85rem; color: var(--text-muted); font-weight:bold; text-transform: uppercase;">Active Hedged Amount</div>
+                <div id="hedge-kpi-booked" style="font-size: 1.8rem; font-weight: bold; color: var(--primary);">$0</div>
+                <div style="font-size: 0.75rem; color: var(--text-muted); margin-top:5px;">Available Forward Limits</div>
+            </div>
+            <div class="card" style="text-align: center; background: rgba(34, 197, 94, 0.05); border: 1px solid #bbf7d0;">
+                <div style="font-size: 0.85rem; color: var(--text-muted); font-weight:bold; text-transform: uppercase;">Risk Covered %</div>
+                <div id="hedge-kpi-cover" style="font-size: 1.8rem; font-weight: bold; color: #166534;">0%</div>
+                <div id="hedge-kpi-avg" style="font-size: 0.8rem; color: #15803d; margin-top:5px; font-weight:bold;">Avg Booking Rate: ₹0.00</div>
+            </div>
+            <div class="card" style="text-align: center; background: var(--bg); border: 1px solid var(--border);">
+                <div style="font-size: 0.85rem; color: var(--text-muted); font-weight:bold; text-transform: uppercase;">Realized Hedge PnL</div>
+                <div id="hedge-kpi-pnl" style="font-size: 1.8rem; font-weight: bold; color: var(--text);">₹0</div>
+                <div style="font-size: 0.75rem; color: var(--text-muted); margin-top:5px;">From cancelled/settled limits</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>Book New Forward / Hedge Contract</h3>
+            <form id="hedge-form" onsubmit="addHedgeEntry(event)">
+                <div class="grid-4">
+                    <div><label>Ref / Contract No.</label><input type="text" id="hedge-ref" required></div>
+                    <div><label>Booking Date</label><input type="date" id="hedge-date" required></div>
+                    <div><label>Amount (FCY e.g. USD)</label><input type="number" step="0.01" id="hedge-amount" required></div>
+                    <div><label>Booked Rate (₹)</label><input type="number" step="0.0001" id="hedge-rate" required></div>
+                    
+                    <div><label>Delivery Type</label>
+                        <select id="hedge-type" onchange="toggleHedgeWindow()">
+                            <option value="Single">Single Date</option>
+                            <option value="Window">Window (From-To)</option>
+                        </select>
+                    </div>
+                    <div><label>Valid Period / Start Date</label><input type="date" id="hedge-valid-from" required></div>
+                    <div id="hedge-date-end-cont" class="hidden"><label>End Date</label><input type="date" id="hedge-valid-to"></div>
+                    <div><label>Currency</label><input type="text" id="hedge-curr" value="USD" required></div>
+                    <div style="background: rgba(59, 130, 246, 0.1); border-radius: 6px; padding: 2px 8px; border: 1px dashed var(--primary);">
+                        <label style="color: var(--primary); font-weight: 800; font-size: 0.75rem;">🎯 Target Alert Rate (₹)</label>
+                        <input type="number" step="0.0001" id="hedge-target-rate" placeholder="e.g. 84.50" style="background: transparent; border: none; font-weight: bold; color: var(--primary);">
+                    </div>
+                </div>
+                <button type="submit" style="margin-top:15px; background:var(--primary); width:100%;">🛡️ Book Hedge Contract</button>
+            </form>
+        </div>
+
+        <div class="card" style="margin-top: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="margin: 0;">Active & Settled Contracts</h3>
+            </div>
+            <div style="overflow-x: auto; margin-top: 15px;">
+                <table id="hedge-table" style="font-size: 0.85rem;">
+                    <thead>
+                        <tr>
+                            <th>Ref No</th>
+                            <th>Booking Date</th>
+                            <th>Type</th>
+                            <th>Valid Period</th>
+                            <th>Amount (FCY)</th>
+                            <th>Available Balance</th>
+                            <th>Rate (₹)</th>
+                            <th>MTM Gain/Loss</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+        </div>
+
+        <div id="hedge-sub-advisor" class="hidden">
+            <!-- MAFAE AI DASHBOARD -->
+            <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 30px; border-radius: 16px; margin-bottom: 25px; border: 1px solid rgba(59, 130, 246, 0.2); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4); position: relative;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px; border-bottom: 1px solid rgba(59, 130, 246, 0.1); padding-bottom: 15px;">
+                    <div>
+                        <h2 style="margin: 0; color: #60a5fa; font-size: 1.8rem; letter-spacing: 0.5px; display: flex; align-items: center; gap: 12px;">
+                            <span>🌍 Macro-Aware Forex AI Engine (MAFAE)</span>
+                        </h2>
+                        <p style="margin: 8px 0 0 0; color: #94a3b8; font-size: 0.95rem;">Professional Advisory Engine analyzing global correlations & trends.</p>
+                    </div>
+                    <div style="text-align: right;">
+                        <span style="background: rgba(59, 130, 246, 0.1); color: #60a5fa; font-family: monospace; padding: 6px 12px; border-radius: 6px; border: 1px solid rgba(59, 130, 246, 0.2); font-weight: bold; font-size: 0.9rem;">v2.0 Macro-LSTM Core</span>
+                    </div>
+                </div>
+
+                <!-- MACRO INDICATOR WIDGETS -->
+                <div class="grid-5" style="gap: 15px; margin-bottom: 25px;">
+                    <div class="card" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); padding: 12px; text-align: center;">
+                        <div style="font-size: 0.7rem; color: #94a3b8; font-weight: bold; margin-bottom: 8px;">GOLD PRICE (XAU/USD)</div>
+                        <div id="mafae-gold-val" style="font-size: 1.2rem; font-weight: bold; color: #fbbf24;">$2,165.40</div>
+                        <div id="mafae-gold-trend" style="font-size: 0.7rem; color: #10b981; margin-top: 4px;">📈 Upward Trend</div>
+                    </div>
+                    <div class="card" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); padding: 12px; text-align: center;">
+                        <div style="font-size: 0.7rem; color: #94a3b8; font-weight: bold; margin-bottom: 8px;">BRENT CRUDE OIL</div>
+                        <div id="mafae-oil-val" style="font-size: 1.2rem; font-weight: bold; color: #f1f5f9;">$85.20</div>
+                        <div id="mafae-oil-trend" style="font-size: 0.7rem; color: #ef4444; margin-top: 4px;">📈 High (INR Weak)</div>
+                    </div>
+                    <div class="card" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); padding: 12px; text-align: center;">
+                        <div style="font-size: 0.7rem; color: #94a3b8; font-weight: bold; margin-bottom: 8px;">DXY DOLLAR INDEX</div>
+                        <div id="mafae-dxy-val" style="font-size: 1.2rem; font-weight: bold; color: #3b82f6;">103.45</div>
+                        <div id="mafae-dxy-trend" style="font-size: 0.7rem; color: #64748b; margin-top: 4px;">📊 Neutral Strength</div>
+                    </div>
+                    <div class="card" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); padding: 12px; text-align: center;">
+                        <div style="font-size: 0.7rem; color: #94a3b8; font-weight: bold; margin-bottom: 8px;">INTEREST RATES (FED)</div>
+                        <div id="mafae-rates-val" style="font-size: 1.2rem; font-weight: bold; color: #f8fafc;">5.50%</div>
+                        <div id="mafae-rates-trend" style="font-size: 0.7rem; color: #64748b; margin-top: 4px;">RBI: 6.50% (Spread: 1%)</div>
+                    </div>
+                    <div class="card" style="background: rgba(59, 130, 246, 0.1); border: 1px solid #3b82f6; padding: 12px; text-align: center;">
+                        <div style="font-size: 0.7rem; color: #3b82f6; font-weight: bold; margin-bottom: 8px;">MACRO IMPACT SCORE</div>
+                        <div id="mafae-impact-val" style="font-size: 1.2rem; font-weight: bold; color: #f1f5f9;">+8.2</div>
+                        <div style="font-size: 0.7rem; color: #3b82f6; margin-top: 4px; font-weight: 800;">USD BULLISH</div>
+                    </div>
+                </div>
+
+                <!-- PREDICTION PANEL -->
+                <div class="grid-2" style="gap: 25px;">
+                    <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 20px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <h3 style="margin: 0; font-size: 1rem; color: #cbd5e1;">🤖 AI Market Prediction</h3>
+                            <button onclick="window.runMAFAEEngine(event)" style="background: #3b82f6; color: white; border: none; padding: 4px 12px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; cursor: pointer;">🔄 Re-Model</button>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 30px;">
+                            <div>
+                                <div style="color: #64748b; font-size: 0.75rem; margin-bottom: 5px;">CURRENT RATE</div>
+                                <div id="mafae-curr-val" style="font-size: 2rem; font-weight: bold; color: #f1f5f9;">₹83.20</div>
+                            </div>
+                            <div style="font-size: 1.5rem; color: #3b82f6;">➔</div>
+                            <div>
+                                <div style="color: #3b82f6; font-size: 0.75rem; font-weight: bold; margin-bottom: 5px;">PREDICTED (24H)</div>
+                                <div id="mafae-pred-val" style="font-size: 2.2rem; font-weight: bold; color: #34d399;">₹84.10</div>
+                            </div>
+                        </div>
+                        <div style="margin-top: 20px; display: flex; gap: 15px;">
+                            <div id="mafae-trend-badge" style="background: rgba(52, 211, 153, 0.1); color: #34d399; padding: 4px 12px; border-radius: 4px; font-size: 0.8rem; font-weight: bold;">Trend: Calculating...</div>
+                            <div id="mafae-conf-badge" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6; padding: 4px 12px; border-radius: 4px; font-size: 0.8rem; font-weight: bold;">Confidence: --%</div>
+                        </div>
+                    </div>
+                    
+                    <div style="background: rgba(59, 130, 246, 0.05); border: 1px dashed #3b82f6; border-radius: 12px; padding: 20px;">
+                        <h3 style="margin: 0 0 10px 0; font-size: 1rem; color: #3b82f6;">🧠 AI Reasoning (MAFAE Insight)</h3>
+                        <p id="mafae-reasoning" style="color: #94a3b8; font-size: 0.9rem; line-height: 1.6; margin: 0;">
+                            Macro analysis suggests USD strength against INR. Crude oil price rising (Brent > $85) puts pressure on INR. DXY index showing resilience above 103. FED interest rate stability continues to favor USD carrying trade. Recommendation: WAIT for realization.
+                        </p>
+                        <div style="margin-top: 15px; display: flex; align-items: center; gap: 10px;">
+                            <div id="mafae-action-badge" style="background: #ef4444; color: white; padding: 5px 15px; border-radius: 20px; font-weight: 800; font-size: 0.8rem; text-transform: uppercase;">Decision: WAIT</div>
+                            <div style="color: #64748b; font-size: 0.75rem; font-style: italic;">Volatility detected in crude markets.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- INVOICE INTELLIGENCE LEDGER -->
+            <div class="card" style="margin-top: 25px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h3 style="margin: 0;">📦 Invoice Intelligence Dashboard</h3>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <button onclick="window.toggleMAFAEConfig()" style="background:transparent; border:1px solid var(--border); color:var(--text-muted); font-size:0.7rem; padding:4px 10px; border-radius:4px; cursor:pointer;">⚙️ AI Config</button>
+                        <div style="font-size: 0.8rem; color: var(--text-muted);">Macro-Adjusted Risk Assessment per Invoice</div>
+                    </div>
+                </div>
+
+                <div id="mafae-config" class="hidden" style="background: rgba(139, 92, 246, 0.08); border: 1px dashed #8b5cf6; border-radius: 12px; padding: 25px; margin-bottom: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 20px;">
+                        <div>
+                            <h4 style="margin: 0 0 5px 0; font-size: 1rem; color: #7c3aed; font-weight: 800;">🛰️ CLUSTER SYNC & API OVERRIDE</h4>
+                            <p style="margin:0; font-size:0.8rem; color:var(--text-muted); opacity: 0.8;">Override global AI settings for local MAFAE prioritization.</p>
+                        </div>
+                        <div style="text-align:right;">
+                            <div id="mafae-global-stat-indicator" style="font-size:0.75rem; font-weight:900; color:#ef4444; margin-bottom:8px; text-transform: uppercase;">● AI ENGINE DISCONNECTED</div>
+                            <button onclick="window.runMAFAEEngine(event)" style="padding:6px 14px; font-size:0.75rem; background:#7c3aed; color:white; border:none; border-radius:6px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 4px rgba(124, 58, 237, 0.3);">⚡ SYNC AI NOW</button>
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; background: rgba(0,0,0,0.05); padding: 15px; border-radius: 8px;">
+                        <div>
+                            <label style="font-size: 0.7rem; color: #7c3aed; font-weight: bold; text-transform: uppercase;">Gemini 1.5 Flash Key</label>
+                            <input type="password" id="mafae-key-gemini" placeholder="Paste Gemini Key..." style="width: 100%; padding: 8px; font-size: 0.8rem; background: var(--surface); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 4px; color: var(--text);">
+                        </div>
+                        <div>
+                            <label style="font-size: 0.7rem; color: #7c3aed; font-weight: bold; text-transform: uppercase;">ChatGPT 4o Key</label>
+                            <input type="password" id="mafae-key-gpt" placeholder="Paste OpenAI Key..." style="width: 100%; padding: 8px; font-size: 0.8rem; background: var(--surface); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 4px; color: var(--text);">
+                        </div>
+                    </div>
+                    <div style="margin-top: 15px; display: flex; justify-content: flex-end; gap: 10px;">
+                        <button class="secondary" onclick="document.getElementById('mafae-config').classList.add('hidden')" style="font-size: 0.75rem; padding: 6px 12px;">Cancel</button>
+                        <button onclick="window.saveMAFAESettings()" style="background: #10b981; color: white; border: none; padding: 6px 15px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; cursor: pointer;">✅ Update & Unlock Cloud AI</button>
+                    </div>
+                </div>
+
+                <div style="overflow-x: auto;">
+                    <table id="mafae-invoice-table">
+                        <thead>
+                            <tr>
+                                <th>Invoice No</th>
+                                <th>FCY Amount</th>
+                                <th>Book Rate</th>
+                                <th>Target Rate</th>
+                                <th>Predicted P/L</th>
+                                <th>Macro Score</th>
+                                <th>Risk Indicator</th>
+                                <th>AI Advice</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="fin-aging-tab" class="finance-container hidden">
+        <div class="grid-3" style="margin-bottom: 20px;">
+            <div class="card" style="text-align: center; background: rgba(245, 158, 11, 0.05); border: 1px solid #fde047;">
+                <h3 style="color: #b45309; font-size: 0.9rem; margin-bottom:5px;">Pending (0-30 Days)</h3>
+                <div id="aging-kpi-30" style="font-size: 1.8rem; font-weight: bold; color: #b45309;">$0</div>
+            </div>
+            <div class="card" style="text-align: center; background: rgba(245, 158, 11, 0.05); border: 1px solid #fecdd3;">
+                <h3 style="color: #be123c; font-size: 0.9rem; margin-bottom:5px;">Overdue (31-60 Days)</h3>
+                <div id="aging-kpi-60" style="font-size: 1.8rem; font-weight: bold; color: #be123c;">$0</div>
+            </div>
+            <div class="card" style="text-align: center; background: rgba(239, 68, 68, 0.05); border: 1px solid #fca5a5;">
+                <h3 style="color: #9f1239; font-size: 0.9rem; margin-bottom:5px;">Critical (60+ Days)</h3>
+                <div id="aging-kpi-90" style="font-size: 1.8rem; font-weight: bold; color: #9f1239;">$0</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 style="margin: 0;">Accounts Receivable Aging Report</h3>
+                <span style="font-size: 0.85rem; color: var(--text-muted);">Auto-tracks unpaid Commercial Invoices & Knocked-off Realizations</span>
+            </div>
+            
+            <div class="ledger-filter-box">
+                <div class="ledger-filter-item">
+                    <span class="ledger-filter-label">FINANCIAL YEAR</span>
+                    <select class="ledger-filter-input" id="filter-fy-aging" onchange="renderAgingReport()" style="width: 120px;">
+                        <option value="">All Years</option>
+                    </select>
+                </div>
+                <div class="ledger-filter-item">
+                    <span class="ledger-filter-label">DATE FROM</span>
+                    <input type="date" class="ledger-filter-input" id="filter-date-from-aging" onchange="renderAgingReport()" style="width: 130px;">
+                </div>
+                <div class="ledger-filter-item">
+                    <span class="ledger-filter-label">DATE TO</span>
+                    <input type="date" class="ledger-filter-input" id="filter-date-to-aging" onchange="renderAgingReport()" style="width: 130px;">
+                </div>
+                <div class="ledger-filter-item" style="flex: 1; min-width: 150px;">
+                    <span class="ledger-filter-label">SEARCH</span>
+                    <input type="text" class="ledger-filter-input" id="filter-search-aging" placeholder="Search invoices..." oninput="renderAgingReport()" style="width: 100%;">
+                </div>
+                <div class="ledger-filter-item">
+                    <span class="ledger-filter-label">SHOW DETAILS</span>
+                    <select class="ledger-filter-input" id="filter-limit-aging" onchange="renderAgingReport()" style="width: 90px;">
+                        <option value="25" selected>25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                        <option value="999999">All</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: 8px; flex-shrink: 0;">
+                    <button type="button" class="ledger-filter-btn" style="color: #ef4444; width: 38px; padding: 0; font-size: 1.2rem;" title="Reset Filters" onclick="if(typeof resetFinanceFilters === 'function') resetFinanceFilters('aging')">✖</button>
+                    <button type="button" class="ledger-filter-btn" style="width: 38px; padding: 0; font-size: 1.2rem;" title="Download CSV" onclick="if(typeof exportFinanceFiltered === 'function') exportFinanceFiltered('aging')">📥</button>
+                </div>
+            </div>
+
+            <div style="overflow-x: auto;">
+                <table id="aging-table">
+                    <thead>
+                        <tr>
+                            <th>Inv Ref</th>
+                            <th>Date Issued</th>
+                            <th>Buyer</th>
+                            <th>Expected Value</th>
+                            <th>Realized Value</th>
+                            <th>Balance Pending</th>
+                            <th>Days Pending</th>
+                            <th>Status Flag</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="fin-pnl-tab" class="finance-container hidden">
+        <div class="grid-3" style="margin-bottom: 20px;">
+            <div class="card" style="border-top: 4px solid var(--success); text-align: center;">
+                <h3 style="color: var(--text-muted); font-size: 1rem;">Total Revenue (INR)</h3>
+                <div id="pnl-kpi-rev" style="font-size: 2rem; font-weight: bold; color: var(--success);">₹0</div>
+            </div>
+            <div class="card" style="border-top: 4px solid var(--danger); text-align: center;">
+                <h3 style="color: var(--text-muted); font-size: 1rem;">Total Direct Costs</h3>
+                <div id="pnl-kpi-exp" style="font-size: 2rem; font-weight: bold; color: var(--danger);">₹0</div>
+            </div>
+            <div class="card" style="border-top: 4px solid var(--primary); text-align: center; background: rgba(59, 130, 246, 0.05);">
+                <h3 style="color: var(--text-muted); font-size: 1rem;">Net Profit</h3>
+                <div id="pnl-kpi-profit" style="font-size: 2rem; font-weight: bold; color: var(--primary);">₹0</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>Invoice Profitability Ledger</h3>
+            <div class="ledger-filter-box">
+                <div class="ledger-filter-item">
+                    <span class="ledger-filter-label">FINANCIAL YEAR</span>
+                    <select class="ledger-filter-input" id="filter-fy-pnl" onchange="renderShipmentPnL()" style="width: 120px;">
+                        <option value="">All Years</option>
+                    </select>
+                </div>
+                <div class="ledger-filter-item">
+                    <span class="ledger-filter-label">DATE FROM</span>
+                    <input type="date" class="ledger-filter-input" id="filter-date-from-pnl" onchange="renderShipmentPnL()" style="width: 130px;">
+                </div>
+                <div class="ledger-filter-item">
+                    <span class="ledger-filter-label">DATE TO</span>
+                    <input type="date" class="ledger-filter-input" id="filter-date-to-pnl" onchange="renderShipmentPnL()" style="width: 130px;">
+                </div>
+                <div class="ledger-filter-item" style="flex: 1; min-width: 150px;">
+                    <span class="ledger-filter-label">SEARCH</span>
+                    <input type="text" class="ledger-filter-input" id="filter-search-pnl" placeholder="Search references..." oninput="renderShipmentPnL()" style="width: 100%;">
+                </div>
+                <div class="ledger-filter-item">
+                    <span class="ledger-filter-label">SHOW DETAILS</span>
+                    <select class="ledger-filter-input" id="filter-limit-pnl" onchange="renderShipmentPnL()" style="width: 90px;">
+                        <option value="25" selected>25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                        <option value="999999">All</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: 8px; flex-shrink: 0;">
+                    <button type="button" class="ledger-filter-btn" style="color: #ef4444; width: 38px; padding: 0; font-size: 1.2rem;" title="Reset Filters" onclick="if(typeof resetFinanceFilters === 'function') resetFinanceFilters('pnl')">✖</button>
+                    <button type="button" class="ledger-filter-btn" style="width: 38px; padding: 0; font-size: 1.2rem;" title="Download CSV" onclick="if(typeof exportFinanceFiltered === 'function') exportFinanceFiltered('pnl')">📥</button>
+                </div>
+            </div>
+
+            <div style="overflow-x: auto;">
+                <table id="shipment-pnl-table">
+                    <thead>
+                        <tr>
+                            <th>Inv Ref</th>
+                            <th>Buyer</th>
+                            <th>Realized Rev</th>
+                            <th>Allocated Cost</th>
+                            <th>Net Profit</th>
+                            <th>AI Auditor</th>
+                            <th>Margin</th>
+                            <th>Status / Audit Lock</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="fin-dossier-tab" class="finance-container hidden">
+        <div class="card" style="margin-bottom: 25px; background: var(--bg); border-top: 5px solid var(--primary);">
+            <label style="font-weight: 800; color: var(--primary); font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;">Universal Shipment Intelligence (360° Audit):</label>
+            <div style="display:flex; gap:10px; margin-top:10px;">
+                <select id="dossier-select" onchange="renderDossierView()" style="font-size: 1.1rem; padding: 12px; flex-grow:1; border-radius: 8px; border: 1px solid var(--border); box-shadow: var(--shadow-sm);"></select>
+                <div style="display:flex; gap:8px;">
+                    <button id="btn-admin-profit" class="hidden secondary" style="background:#1e293b; color:white; border:none;" onclick="openAdminProfitModal()">👑 Admin Report</button>
+                    <button class="primary" onclick="if(typeof printDossier === 'function') printDossier()" style="padding: 0 25px;">🖨️ Print Audit</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="dossier-empty" style="text-align: center; padding: 80px 20px; color: var(--text-muted); background: white; border-radius: 12px; border: 1px dashed var(--border);">
+            <div style="font-size: 4rem; margin-bottom: 20px;">📁</div>
+            <h3 style="margin-bottom:10px; color: var(--text);">Enterprise Intelligence Ready</h3>
+            <p>Select a Commercial Invoice to generate the multi-tier financial and logistics dossier for this trade cycle.</p>
+        </div>
+
+        <div id="dossier-content" class="hidden">
+            <div style="display:grid; grid-template-columns: 2fr 1fr; gap:25px;">
+                <!-- LEFT COLUMN: Financials & Audit -->
+                <div style="display:flex; flex-direction:column; gap:25px;">
+                    
+                    <!-- Header Card -->
+                    <div class="card" style="margin:0; padding:25px; background:white; position:relative; overflow:hidden;">
+                        <div style="position:absolute; right: -20px; top: -20px; font-size: 8rem; color: rgba(59,130,246,0.03); transform: rotate(-15deg); font-weight: 900; pointer-events:none;">EXPORT</div>
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                            <div>
+                                <h2 id="dos-buyer" style="margin:0; color:var(--primary); font-size:1.8rem; font-weight:800;">BUYER NAME</h2>
+                                <p id="dos-ident" style="color:var(--text-muted); margin-top:5px; font-weight:700; letter-spacing:0.5px;">
+                                    DATE: <span id="dos-date">--</span> | POD: <span id="dos-pod">--</span> | VAL: <span id="dos-value">--</span>
+                                </p>
+                            </div>
+                            <div style="text-align:right;">
+                                <div id="dos-margin-gauge-container" style="display:flex; flex-direction:column; align-items:center;">
+                                    <svg width="80" height="80" viewBox="0 0 100 100">
+                                        <circle cx="50" cy="50" r="40" stroke="var(--bg)" stroke-width="10" fill="none" />
+                                        <circle id="dos-profit-gauge-fill" cx="50" cy="50" r="40" stroke="var(--primary)" stroke-width="10" fill="none" 
+                                            stroke-dasharray="251.2" stroke-dashoffset="251.2" stroke-linecap="round" transform="rotate(-90 50 50)" 
+                                            style="transition: stroke-dashoffset 1.5s cubic-bezier(0.175, 0.885, 0.32, 1.275), stroke 0.8s;" />
+                                        <text id="dos-profit-gauge-text" x="50" y="58" text-anchor="middle" font-size="18" font-weight="900" fill="var(--text)">0%</text>
+                                    </svg>
+                                    <div style="font-size:0.65rem; color:var(--text-muted); font-weight:700; text-transform:uppercase; margin-top:5px;">Margin ROI %</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Costing Variance -->
+                    <div class="card" style="margin:0; padding:25px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom:1px solid var(--border); padding-bottom:10px;">
+                            <h3 style="margin:0; display:flex; align-items:center; gap:10px;">
+                                <span style="background:rgba(59,130,246,0.1); color:var(--primary); width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:50%; font-size:0.8rem;">1</span>
+                                Target vs Actual (Variance Audit)
+                            </h3>
+                            <div style="display:flex; align-items:center; gap:10px;">
+                                <div class="variance-toggle" style="display:flex; background:var(--bg); padding:2px; border-radius:20px; border:1px solid var(--border);">
+                                    <button class="var-mode-btn active" id="var-mode-total" onclick="setVarianceMode('total')" style="padding:4px 12px; font-size:0.7rem; border-radius:18px; border:none; cursor:pointer;">Total</button>
+                                    <button class="var-mode-btn" id="var-mode-unit" onclick="setVarianceMode('unit')" style="padding:4px 12px; font-size:0.7rem; border-radius:18px; border:none; cursor:pointer; background:transparent; color:var(--text-muted);">Per MT</button>
+                                </div>
+                                <select id="dos-costing-select" onchange="linkCostingToDossier(this.value)" style="margin: 0; width: 140px; font-size: 0.75rem; padding: 4px;"></select>
+                            </div>
+                        </div>
+                        
+                        <div id="dos-costing-empty" style="text-align: center; padding: 25px; color: var(--text-muted); font-size: 0.85rem; background:rgba(248,250,252,0.5); border-radius:8px;">
+                            Link a Pre-Costing profile to enable variance benchmarking.
+                        </div>
+                        <table id="dos-costing-comparison" class="modern-table hidden">
+                            <thead style="background:var(--bg);">
+                                <tr><th>Financial Metric</th><th>Estimated</th><th>Actual</th><th>Variance</th></tr>
+                            </thead>
+                            <tbody id="dos-costing-tbody"></tbody>
+                        </table>
+                    </div>
+
+                    <!-- Logistics Correlation -->
+                    <div class="card" style="margin:0; padding:25px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom:1px solid var(--border); padding-bottom:10px;">
+                            <h3 style="margin:0; display:flex; align-items:center; gap:10px;">
+                                <span style="background:rgba(59,130,246,0.1); color:var(--primary); width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:50%; font-size:0.8rem;">2</span>
+                                Multi-Modal Logistics (Physical Audit)
+                            </h3>
+                            <div style="display: flex; gap: 5px; background:var(--bg); padding:4px; border-radius:8px;">
+                                <button class="sub-tab-btn active" id="btn-dos-log-truck" onclick="switchDosLogTab('truck')" style="padding: 4px 12px; font-size:0.75rem; font-weight:700;">TRUCKS (<span id="dos-truck-count">0</span>)</button>
+                                <button class="sub-tab-btn" id="btn-dos-log-cont" onclick="switchDosLogTab('cont')" style="padding: 4px 12px; font-size:0.75rem; font-weight:700;">CONTS (<span id="dos-cont-count">0</span>)</button>
+                            </div>
+                        </div>
+
+                        <div id="dos-log-truck-tab">
+                            <table class="modern-table">
+                                <thead style="background:var(--bg);">
+                                    <tr><th>Vehicle No</th><th>Consignment</th><th style="text-align:center;">Bags</th><th style="text-align:right;">Weight</th></tr>
+                                </thead>
+                                <tbody id="dos-log-truck-table-body"></tbody>
+                                <tfoot style="background:rgba(59,130,246,0.03); font-weight:800;">
+                                    <tr><td colspan="2">TOTAL LOAD</td><td id="dos-truck-tot-bags" style="text-align:center;">0</td><td id="dos-truck-tot-wt" style="text-align:right; color:var(--primary);">0 MT</td></tr>
+                                </tfoot>
+                            </table>
+                        </div>
+
+                        <div id="dos-log-cont-tab" class="hidden">
+                            <table class="modern-table">
+                                <thead style="background:var(--bg);">
+                                    <tr><th>Container No</th><th>Seal No</th><th style="text-align:center;">Bags</th><th style="text-align:right;">Net Wt</th></tr>
+                                </thead>
+                                <tbody id="dos-log-cont-table-body"></tbody>
+                                <tfoot style="background:rgba(59,130,246,0.03); font-weight:800;">
+                                    <tr><td colspan="2">TOTAL STOWAGE</td><td id="dos-cont-tot-bags" style="text-align:center;">0</td><td id="dos-cont-tot-wt" style="text-align:right; color:var(--primary);">0 MT</td></tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- RIGHT COLUMN: Financial Health & Expenses -->
+                <div style="display:flex; flex-direction:column; gap:25px;">
+                    
+                    <!-- Realized P&L Summary -->
+                    <div class="card" style="margin:0; background:linear-gradient(135deg, var(--primary), #1e293b); color:white; padding:25px; border:none;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                            <h4 style="margin:0; font-size:0.8rem; text-transform:uppercase; letter-spacing:1px; opacity:0.8;">Shipment Financial Radar</h4>
+                            <div id="dossier-lock-status" style="font-size:0.65rem; background:rgba(255,255,255,0.1); padding:4px 8px; border-radius:4px;">OPEN</div>
+                        </div>
+                        <div style="display:flex; flex-direction:column; gap:12px;">
+                            <div style="display:flex; justify-content:space-between;"><span>Realized Revenue:</span><b id="dos-rev" style="color:#86efac;">₹0</b></div>
+                            <div style="display:flex; justify-content:space-between; opacity:0.9;"><span>Documented Costs:</span><b id="dos-cost" style="color:#fca5a5;">₹0</b></div>
+                            <div style="display:flex; justify-content:space-between; margin-top:10px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.2); font-size:1.4rem; font-weight:900;">
+                                <span style="font-size:1rem; font-weight:normal;">Net Profit:</span><b id="dos-profit">₹0</b>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Linked Expenses Ledger -->
+                    <div class="card" style="margin:0; background:white; padding:25px;">
+                        <h3 style="margin:0 0 15px 0; font-size:1rem;">Operational Expenses</h3>
+                        <div style="max-height: 400px; overflow-y: auto;">
+                            <table class="modern-table" style="font-size: 0.75rem; background: transparent;">
+                                <tbody id="dos-exp-tbody"></tbody>
+                            </table>
+                        </div>
+                        <div style="margin-top:20px; padding-top:15px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+                            <span style="font-weight:700; font-size:0.85rem;">Total Outward:</span>
+                            <b id="dos-exp-tot-all" style="color:var(--danger); font-size:1.1rem;">₹0</b>
+                        </div>
+                        <div style="font-size:0.65rem; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:5px; opacity:0.7;">
+                            <span>Basic: <span id="dos-exp-tot-amt">₹0</span></span>
+                            <span>GST: <span id="dos-exp-tot-gst">₹0</span></span>
+                        </div>
+                    </div>
+
+                    <!-- Dossier Actions -->
+                    <div class="card" style="margin:0; border:1px dashed var(--primary); background:rgba(37,99,235,0.02); padding:20px; text-align:center;">
+                        <h4 style="margin:0 0 10px 0; font-size:0.8rem;">Audit Intelligence Tools</h4>
+                        <div style="display:grid; grid-template-columns: 1fr; gap:10px;">
+                            <button class="secondary" style="width:100%; font-size:0.8rem;" onclick="if(typeof exportFinanceFiltered === 'function') exportFinanceFiltered('pnl')">📊 Download P&L CSV</button>
+                            <button class="secondary" style="width:100%; font-size:0.8rem;" onclick="Enterprise.notify('AI analyzing deviations in container vs truck weights...', 'info')">🤖 Run AI Weight Audit</button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div id="vendor-book-modal" class="hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; display: none; align-items: center; justify-content: center;">
+        <div class="card" style="width: 500px; max-height: 80vh; display: flex; flex-direction: column; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 15px;">
+                <h3 style="margin: 0; color: var(--primary);">📒 Smart Vendor Book</h3>
+                <button type="button" class="secondary" style="border:none; padding:5px 10px;" onclick="closeVendorBook()">✕</button>
+            </div>
+            <input type="text" id="vb-search" placeholder="Search Suppliers, CHA, Transport..." oninput="filterVendorBook()" style="margin-bottom: 15px;">
+            <div id="vb-list" style="overflow-y: auto; flex-grow: 1; border: 1px solid var(--border); border-radius: 4px; background: var(--bg);">
+            </div>
+        </div>
+    </div>
+
+    <div id="hedge-settle-modal" class="hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; display: none; align-items: center; justify-content: center;">
+        <div class="card" style="width: 450px; background: var(--surface);">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 15px;">
+                <h3 style="margin: 0; color: var(--text);">Cancel / Settle Hedge: <span id="settle-hedge-ref" style="color:var(--primary);"></span></h3>
+                <button type="button" class="secondary" style="border:none; padding:5px 10px;" onclick="closeSettleHedgeModal()">✕</button>
+            </div>
+            <input type="hidden" id="settle-hedge-id">
+            <div style="margin-bottom: 15px;">
+                <label>Remaining FCY Amount to Settle</label>
+                <input type="number" id="settle-hedge-amt" readonly style="background: var(--bg);">
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label>Market Cancellation Rate (₹)</label>
+                <input type="number" step="0.0001" id="settle-market-rate" required oninput="calcHedgeSettlePnl()">
+            </div>
+            <div style="margin-bottom: 15px; padding: 10px; background: var(--bg); border-radius: 6px; border: 1px solid var(--border);">
+                <div style="font-size: 0.8rem; color: var(--text-muted);">Realized PnL from Settlement</div>
+                <div id="settle-pnl-display" style="font-size: 1.5rem; font-weight: bold; color: var(--text);">₹0.00</div>
+            </div>
+            <button onclick="confirmHedgeSettlement()" style="width: 100%; background: var(--primary);">Confirm & Book PnL</button>
+        </div>
+    </div>
+
+    <div id="admin-profit-modal" class="hidden modal-overlay" style="position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 10005; display: none; align-items: center; justify-content: center; padding: 20px;">
+        <div class="card" style="width: 100%; max-width: 900px; max-height: 90vh; overflow-y: auto; display: flex; flex-direction: column; background: var(--surface);">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 15px; margin-bottom: 15px;">
+                <h2 style="margin:0; font-size:1.5rem; color: var(--primary);">👑 Admin Final Profit Report</h2>
+                <div style="display: flex; gap: 10px;">
+                    <button class="secondary" onclick="clearAdminProfitData()">🧹 Clear</button>
+                    <button class="secondary" onclick="printAdminProfitReport()" style="background: var(--border); color: #1e293b; border: 1px solid var(--border);">🖨️ Export PDF Report</button>
+                    <button class="danger" style="border-radius: 50%; width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center;" onclick="closeAdminProfitModal()">✕</button>
+                </div>
+            </div>
+
+            <div class="grid-2" style="margin-bottom: 20px; background: var(--bg); padding: 15px; border-radius: 8px; border: 1px solid var(--border);">
+                <div>
+                    <label style="font-weight: bold; color: var(--text);">Purchase Value of Goods (₹)</label>
+                    <input type="number" id="admin-purchase-val" step="0.01" style="border-color: var(--primary);" placeholder="Enter raw material/goods cost">
+                </div>
+                <div>
+                    <label style="font-weight: bold; color: var(--text);">RoDTEP Earned (₹) - Optional</label>
+                    <input type="number" id="admin-rodtep-val" step="0.01" placeholder="Enter RoDTEP/Incentives earned">
+                </div>
+                <div style="grid-column: span 2; display: flex; justify-content: flex-end;">
+                    <button onclick="saveAdminProfitData()" style="background: var(--primary);">💾 Save Secure Data & Calculate</button>
+                </div>
+            </div>
+
+            <div id="admin-profit-calc-area" class="hidden">
+                <div class="grid-3" style="margin-bottom: 20px;">
+                    <div class="card" style="text-align: center; border-top: 3px solid var(--success);">
+                        <div style="font-size: 0.85rem; color: var(--text-muted);">Total Sale & Incentives</div>
+                        <div id="admin-kpi-sale" style="font-size: 1.5rem; font-weight: bold; color: var(--success);">₹0</div>
+                    </div>
+                    <div class="card" style="text-align: center; border-top: 3px solid var(--danger);">
+                        <div style="font-size: 0.85rem; color: var(--text-muted);">Purchase + Expenses</div>
+                        <div id="admin-kpi-cost" style="font-size: 1.5rem; font-weight: bold; color: var(--danger);">₹0</div>
+                    </div>
+                    <div class="card" style="text-align: center; background: rgba(34, 197, 94, 0.05); border: 1px solid #bbf7d0;">
+                        <div style="font-size: 0.85rem; color: var(--text-muted);">Final Net Profit</div>
+                        <div id="admin-kpi-net" style="font-size: 1.8rem; font-weight: bold; color: #166534;">₹0 <span id="admin-kpi-perc" style="font-size: 1rem; color: #15803d;">(0%)</span></div>
+                    </div>
+                </div>
+
+                <h3 style="border-bottom: 1px solid var(--border); padding-bottom: 5px;">Report Preview Template</h3>
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                        <thead>
+                            <tr style="background: var(--bg); text-align: left;">
+                                <th style="padding: 10px; border: 1px solid var(--border);">Sales & Purchase (INR)</th>
+                                <th style="padding: 10px; border: 1px solid var(--border);">Less Expenses (INR)</th>
+                                <th style="padding: 10px; border: 1px solid var(--border);">Final Profitability</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="padding: 10px; border: 1px solid var(--border); vertical-align: top; width: 33%;">
+                                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;"><span>Sale of Goods Value:</span><b id="prev-sale-val">0</b></div>
+                                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px; color: var(--danger);"><span>Less Purchase of Goods:</span><b id="prev-purc-val">0</b></div>
+                                    <div style="border-top: 1px solid var(--border); margin: 5px 0;"></div>
+                                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px; font-weight: bold;"><span>Total Amount Balance:</span><b id="prev-bal-val">0</b></div>
+                                </td>
+                                <td style="padding: 10px; border: 1px solid var(--border); vertical-align: top; width: 40%;">
+                                    <table style="width: 100%; margin-bottom: 10px; table-layout:fixed; word-wrap:break-word;">
+                                        <thead><tr style="color:var(--text-muted);"><th align="left" style="width:40%;">Vendor & Inv</th><th align="left" style="width:20%;">Cat</th><th align="right" style="width:20%;">Basic</th><th align="right" style="width:20%;">GST</th></tr></thead>
+                                        <tbody id="prev-exp-list"></tbody>
+                                    </table>
+                                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px; font-weight: bold; color: var(--danger);"><span>Total Less Expenses (Without GST):</span><b id="prev-tot-exp">0</b></div>
+                                    <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted);"><span>Total GST Paid (Memo):</span><b id="prev-tot-gst">0</b></div>
+                                </td>
+                                <td style="padding: 10px; border: 1px solid var(--border); vertical-align: top; width: 27%; background: var(--bg);">
+                                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;"><span>RoDTEP Earned:</span><b id="prev-rodtep-val" style="color: var(--primary);">0</b></div>
+                                    <div style="border-top: 1px solid var(--border); margin: 10px 0;"></div>
+                                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 1.1rem;"><span>Net Profit:</span><b id="prev-net-profit" style="color: #166534;">0</b></div>
+                                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;"><span>Profit Percentage:</span><b id="prev-net-perc">0%</b></div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="fin-stress-tab" class="finance-container hidden">
+        <!-- FX SENSITIVITY COMMAND CENTER -->
+        <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: white; padding: 30px; border-radius: 16px; margin-bottom: 25px; border: 1px solid rgba(59, 130, 246, 0.2); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px;">
+                <div>
+                    <h2 style="margin: 0; color: #60a5fa; font-size: 1.8rem; letter-spacing: 0.5px;">🏗️ FX-Sensitivity Stress Tester</h2>
+                    <p style="margin: 8px 0 0 0; color: #94a3b8; font-size: 0.95rem;">Simulate currency volatility impact on unrealized portfolio profit.</p>
+                </div>
+                <div style="text-align: right;">
+                    <div id="stress-val-net-pos" style="font-weight: 900; letter-spacing: 1px; margin-bottom: 5px;">CALCULATING POSITION...</div>
+                    <span style="background: rgba(59, 130, 246, 0.1); color: #60a5fa; font-family: monospace; padding: 4px 10px; border-radius: 4px; border: 1px solid rgba(59, 130, 246, 0.2);">Treasury Simulator v1.0</span>
+                </div>
+            </div>
+
+            <div class="grid-4" style="gap: 15px; margin-bottom: 25px;">
+                <div class="card" style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05); text-align: center;">
+                    <div style="font-size: 0.7rem; color: #94a3b8; font-weight: bold; margin-bottom: 8px; text-transform: uppercase;">Stressed Rate</div>
+                    <div id="stress-val-rate" style="font-size: 1.6rem; font-weight: 900; color: #f1f5f9;">₹ 00.00</div>
+                    <div style="font-size: 0.75rem; color: #64748b; margin-top: 5px;">Live Rate + Simulation Delta</div>
+                </div>
+                <div class="card" style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05); text-align: center;">
+                    <div style="font-size: 0.7rem; color: #94a3b8; font-weight: bold; margin-bottom: 8px; text-transform: uppercase;">Net Exposed (FCY)</div>
+                    <div id="stress-val-exposed" style="font-size: 1.6rem; font-weight: 900; color: #3b82f6;">$ 0</div>
+                    <div style="font-size: 0.75rem; color: #64748b; margin-top: 5px;">Unrealized Receivables - Payables</div>
+                </div>
+                <div class="card" style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05); text-align: center;">
+                    <div style="font-size: 0.7rem; color: #94a3b8; font-weight: bold; margin-bottom: 8px; text-transform: uppercase;">Hedged Offset</div>
+                    <div id="stress-val-hedged" style="font-size: 1.6rem; font-weight: 900; color: #6366f1;">$ 0</div>
+                    <div style="font-size: 0.75rem; color: #64748b; margin-top: 5px;">Active Forward Contract Cushion</div>
+                </div>
+                <div class="card" style="background: rgba(16, 185, 129, 0.1); border: 1px solid #10b981; text-align: center;">
+                    <div style="font-size: 0.7rem; color: #10b981; font-weight: bold; margin-bottom: 8px; text-transform: uppercase;">INR Profit Impact</div>
+                    <div id="stress-val-impact" style="font-size: 1.6rem; font-weight: 900; color: #f1f5f9;">₹ 0.00 L</div>
+                    <div style="font-size: 0.75rem; color: #10b981; margin-top: 5px; font-weight: bold;">Simulated Gain/Loss</div>
+                </div>
+            </div>
+
+            <!-- SIMULATOR CONTROL -->
+            <div style="background: rgba(255, 255, 255, 0.05); padding: 25px; border-radius: 12px; border: 1px dashed rgba(255, 255, 255, 0.1);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <label style="color: #cbd5e1; font-weight: 700;">🎛️ Adjust Exchange Rate Delta (INR):</label>
+                    <span id="stress-delta-label" style="background: #3b82f6; color: white; padding: 4px 12px; border-radius: 20px; font-weight: 900;">0.00 INR</span>
+                </div>
+                <input type="range" id="stress-slider" min="-5" max="5" step="0.10" value="0" style="width: 100%; height: 8px; background: #334155; border-radius: 4px; appearance: none; outline: none; cursor: pointer;" 
+                    oninput="document.getElementById('stress-delta-label').innerText = (this.value > 0 ? '+' : '') + parseFloat(this.value).toFixed(2) + ' INR'; runFXStressTest(this.value)">
+                <div style="display: flex; justify-content: space-between; margin-top: 10px; color: #64748b; font-size: 0.7rem; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">
+                    <span>Stronger INR (-₹5)</span>
+                    <span>Stable</span>
+                    <span>Weaker INR (+₹5)</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>Matrix Analysis: Portfolio Sensitivity Table</h3>
+            <div style="overflow-x: auto;">
+                <table id="stress-table">
+                    <thead>
+                        <tr>
+                            <th>Simulated Rate</th>
+                            <th>INR Delta</th>
+                            <th>Lakhs Impact (MTM)</th>
+                            <th>Business Health Signal</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <div style="margin-top: 20px; padding: 15px; background: rgba(59, 130, 246, 0.05); border-left: 4px solid var(--primary); border-radius: 4px;">
+                <p style="margin: 0; font-size: 0.85rem; color: var(--text-muted); line-height: 1.5;">
+                    <b>🛡️ Treasury Note:</b> This stress test calculates the <b>Mark-to-Market (MTM)</b> impact on your net open position. 
+                    <i>Long Position</i> benefits from a weaker INR (Export surplus), while <i>Short Position</i> (Import liability) is at risk during INR weakness. 
+                    Hedging effectively reduces the "Net Exposed" value, providing stability.
+                </p>
+            </div>
+        </div>
+    </div>
+    <div id="fin-cashflow-tab" class="finance-container hidden">
+        <div class="card" style="margin-bottom: 25px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
+                <h3 style="margin:0;">🏦 AI Financial Treasury Intelligence</h3>
+                <button type="button" class="primary" onclick="renderAIProjectionDashboard()">🔄 Refresh Prediction</button>
+            </div>
+            <p style="color:var(--text-muted); font-size:0.9rem;">This engine uses historical burn rates (expenses) and Vessel ETA calendars to predict global cash movements for the next 90 days. <b>Note:</b> These are projections, not guarantees.</p>
+        </div>
+        <div id="ai-cashflow-view">
+             <!-- Dynamically injected by renderAIProjectionDashboard() -->
+        </div>
+    </div>
+</div>
+
+
+

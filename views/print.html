@@ -1,0 +1,154 @@
+<style>
+    .ledger-filter-box {
+        background-color: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+        padding: 15px 20px; display: flex; justify-content: flex-start; align-items: flex-end;
+        margin-bottom: 20px; flex-wrap: nowrap; gap: 12px; overflow-x: auto; 
+    }
+    .ledger-filter-item { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
+    .ledger-filter-label { font-size: 0.75rem; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
+    .ledger-filter-input { padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.9rem; background: var(--surface); color: var(--text); outline: none; box-sizing: border-box; height: 38px; }
+    .ledger-filter-btn { height: 38px; border: 1px solid var(--border); background: var(--surface); border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; flex-shrink: 0; }
+    .ledger-filter-btn:hover { background: var(--bg); }
+
+    .doc-center-tabs {
+        display: flex; gap: 15px; margin-bottom: 20px; border-bottom: 2px solid var(--border);
+    }
+    .doc-center-tab {
+        padding: 10px 24px; cursor: pointer; font-weight: 700; color: var(--text-muted);
+        border-bottom: 3px solid transparent; margin-bottom: -5px; transition: all 0.3s ease;
+        display: inline-flex; align-items: center; justify-content: center;
+        border: 1px solid transparent; border-bottom: 3px solid transparent;
+    }
+    .doc-center-tab:hover { color: var(--text); background: rgba(255,255,255,0.03); }
+    .doc-center-tab.active { color: var(--primary); border-bottom-color: var(--primary) !important; background: rgba(59, 130, 246, 0.05); }
+    .doc-center-content { display: none; }
+    .doc-center-content.active { display: block; }
+</style>
+
+<div id="print" class="main-tab">
+    <div class="sticky-sub-nav" style="border-radius: 12px 12px 0 0;">
+        <div class="doc-center-tab active" id="tab-templates" onclick="switchDocCenterTab('templates')">📑 Document Templates</div>
+        <div class="doc-center-tab" id="tab-history" onclick="switchDocCenterTab('history')">📜 Print History</div>
+    </div>
+
+    <div class="card" style="border-radius: 0 0 12px 12px; margin-top: 0;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 15px;">
+            <div>
+                <h3 style="margin: 0;">🛠️ Repository & History Control</h3>
+                <p style="color: var(--text-muted); font-size: 0.8rem; margin: 4px 0 0 0;">Reprint generated documents or manage system templates.</p>
+            </div>
+            <button class="secondary" onclick="renderPrintQueue(); if(typeof renderDrafts !== 'undefined') renderDrafts();" style="margin: 0; background: var(--surface); border: 1px solid var(--border); font-weight: bold;">🔄 Refresh Data</button>
+        </div>
+
+        <!-- TEMPLATES TAB -->
+        <div id="doc-center-templates" class="doc-center-content active">
+            <div class="ledger-filter-box" style="padding: 10px 15px; margin-bottom: 15px;">
+                <div class="ledger-filter-item">
+                    <span class="ledger-filter-label">FINANCIAL YEAR</span>
+                    <select class="ledger-filter-input" id="filter-fy-drafts" onchange="renderDrafts()">
+                        <option value="">All Years</option>
+                    </select>
+                </div>
+                <div class="ledger-filter-item">
+                    <span class="ledger-filter-label">DOC TYPE</span>
+                    <select class="ledger-filter-input" id="filter-type-drafts" onchange="renderDrafts()" style="width: 150px;">
+                        <option value="">All Types</option>
+                        <option value="Commercial Invoice">Commercial Invoice</option>
+                        <option value="Proforma Invoice">Proforma Invoice</option>
+                        <option value="Packing List">Packing List</option>
+                        <option value="Commercial Invoice & Packing List">CI & PL Combo</option>
+                    </select>
+                </div>
+                <div class="ledger-filter-item" style="flex: 1;">
+                    <span class="ledger-filter-label">SEARCH</span>
+                    <input type="text" class="ledger-filter-input" id="filter-search-drafts" placeholder="Search Doc No or Buyer..." oninput="renderDrafts()" style="width: 100%;">
+                </div>
+                <div class="ledger-filter-item">
+                    <span class="ledger-filter-label">SHOW</span>
+                    <select class="ledger-filter-input" id="filter-limit-drafts" onchange="renderDrafts()" style="width: 80px;">
+                        <option value="10">10</option>
+                        <option value="25" selected>25</option>
+                        <option value="50">50</option>
+                        <option value="all">All</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: 8px; flex-shrink: 0;">
+                    <button type="button" class="ledger-filter-btn" style="color: #ef4444; width: 38px; padding: 0;" title="Reset Filters" onclick="resetDraftFilters()">✖</button>
+                </div>
+            </div>
+
+            <div style="overflow-x: auto;">
+                <table id="drafts-table" style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                    <thead>
+                        <tr style="background: var(--bg); text-align: left;">
+                            <th style="padding: 10px; border-bottom: 1px solid var(--border);">Date</th>
+                            <th style="padding: 10px; border-bottom: 1px solid var(--border);">Source Doc</th>
+                            <th style="padding: 10px; border-bottom: 1px solid var(--border);">Buyer</th>
+                            <th style="padding: 10px; border-bottom: 1px solid var(--border); text-align:right;">Clone As New Template</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- HISTORY TAB -->
+        <div id="doc-center-history" class="doc-center-content">
+            <div class="ledger-filter-box" style="padding: 10px 15px; margin-bottom: 15px;">
+                <div class="ledger-filter-item">
+                    <span class="ledger-filter-label">FINANCIAL YEAR</span>
+                    <select class="ledger-filter-input" id="filter-fy-print" onchange="renderPrintQueue()">
+                        <option value="">All Years</option>
+                    </select>
+                </div>
+                <div class="ledger-filter-item">
+                    <span class="ledger-filter-label">DOC TYPE</span>
+                    <select class="ledger-filter-input" id="filter-type-print" onchange="renderPrintQueue()" style="width: 150px;">
+                        <option value="">All Types</option>
+                        <option value="Commercial Invoice">Commercial Invoice</option>
+                        <option value="Proforma Invoice">Proforma Invoice</option>
+                        <option value="Packing List">Packing List</option>
+                        <option value="Certificate of Origin">Certificate of Origin</option>
+                    </select>
+                </div>
+                <div class="ledger-filter-item" style="flex: 1;">
+                    <span class="ledger-filter-label">SEARCH</span>
+                    <input type="text" class="ledger-filter-input" id="filter-search-print" placeholder="Search Doc No or Buyer..." oninput="renderPrintQueue()" style="width: 100%;">
+                </div>
+                <div class="ledger-filter-item">
+                    <span class="ledger-filter-label">SHOW</span>
+                    <select class="ledger-filter-input" id="filter-limit-print" onchange="renderPrintQueue()" style="width: 80px;">
+                        <option value="10">10</option>
+                        <option value="25" selected>25</option>
+                        <option value="50">50</option>
+                        <option value="all">All</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: 8px; flex-shrink: 0;">
+                    <button type="button" class="ledger-filter-btn" style="color: #ef4444; width: 38px; padding: 0;" title="Reset Filters" onclick="resetPrintFilters()">✖</button>
+                </div>
+            </div>
+
+            <div style="overflow-x: auto;">
+                <table id="print-queue-table" style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                    <thead>
+                        <tr style="background: var(--bg); text-align: left;">
+                            <th style="padding: 10px; border-bottom: 1px solid var(--border);">Date</th>
+                            <th style="padding: 10px; border-bottom: 1px solid var(--border);">Doc No.</th>
+                            <th style="padding: 10px; border-bottom: 1px solid var(--border);">Type</th>
+                            <th style="padding: 10px; border-bottom: 1px solid var(--border);">Buyer / Consignee</th>
+                            <th style="padding: 10px; border-bottom: 1px solid var(--border); text-align:right;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+
+

@@ -1,0 +1,93 @@
+<div id="system-updates" class="main-tab">
+    <div class="card" style="border-left: 5px solid var(--primary);">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+                <h1 style="margin:0; font-size:1.8rem;">🚀 System Maintenance & Update Center</h1>
+                <p style="color:var(--text-muted); margin-top:5px;">Check for software patches, security updates, and performance optimizations.</p>
+            </div>
+            <div style="text-align:right;">
+                <div id="current-version-badge" style="background:var(--primary); color:white; padding:5px 15px; border-radius:30px; font-weight:800; font-size:0.9rem;">VERSION v8.3.1</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid-2">
+        <!-- Dashboard Card: Update Status -->
+        <div class="card" style="display:flex; flex-direction:column; justify-content:space-between;">
+            <div>
+                <h3>🔍 Software Pulse Check</h3>
+                <div id="update-status-panel" style="padding: 20px; text-align:center; background: rgba(59, 130, 246, 0.05); border-radius:12px; margin-top:15px;">
+                    <div id="update-status-icon" style="font-size:3rem; margin-bottom:10px;">✅</div>
+                    <div id="update-status-text" style="font-weight:700; font-size:1.1rem; color:var(--text);">System is Up to Date</div>
+                    <p id="update-last-checked" style="color:var(--text-muted); font-size:0.8rem; margin-top:5px;">Last checked: Just now</p>
+                </div>
+            </div>
+            <button class="secondary" style="margin-top:20px; width:100%; border:1px solid var(--primary);" onclick="checkSystemUpdates(true)">Check for New Releases</button>
+        </div>
+
+        <!-- Dashboard Card: Admin Auto-Update Upload -->
+        <div class="card admin-only" style="display:none;">
+            <h3>🛠️ Force Update Deployment (Admin)</h3>
+            <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:15px;">Upload a new .exe binary or source bundle to trigger updates for all terminal users.</p>
+            
+            <div style="border:2px dashed var(--border); border-radius:12px; padding:30px; text-align:center; cursor:pointer;" onclick="document.getElementById('update-file-input').click()">
+                <div style="font-size:2.5rem; margin-bottom:10px;">📤</div>
+                <div style="font-weight:700;">Drag & Drop .exe or Click to Upload</div>
+                <p style="font-size:0.75rem; color:var(--text-muted);">Max file size: 50MB (.exe, .app, .zip)</p>
+                <input type="file" id="update-file-input" style="display:none;" onchange="handleUpdateFileUpload(this)">
+            </div>
+            
+            <div id="upload-progress-area" style="display:none; margin-top:20px;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                    <span style="font-size:0.8rem; font-weight:700;">Deploying Version v8.3.2...</span>
+                    <span id="upload-percent" style="font-size:0.8rem;">45%</span>
+                </div>
+                <div style="width:100%; height:8px; background:var(--border); border-radius:4px; overflow:hidden;">
+                    <div id="upload-progress-bar" style="width:45%; height:100%; background:var(--primary);"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Logs Card -->
+    <div class="card">
+        <h3>📜 Terminal Update History</h3>
+        <table class="modern-table" style="margin-top:15px;">
+            <thead>
+                <tr>
+                    <th>Version</th>
+                    <th>Date</th>
+                    <th>Type</th>
+                    <th>Changelog / Notes</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="update-history-body">
+                <tr>
+                    <td>v8.3.1</td>
+                    <td>2026-04-07</td>
+                    <td>Security</td>
+                    <td>- CSP Hardening for AI Integration<br>- Commmand Center UI Redesign</td>
+                    <td><span class="status-badge status-Paid">Active</span></td>
+                </tr>
+                <tr>
+                    <td>v8.2.0</td>
+                    <td>2026-03-25</td>
+                    <td>Feature</td>
+                    <td>- Intelligent Forex Rate Pulse Sync<br>- PnL Auto-Projection AI</td>
+                    <td><span class="status-badge status-Closed">Sunset</span></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Recovery Tools Bar -->
+    <div class="card" style="background: rgba(220, 38, 38, 0.05); border: 1px solid rgba(220, 38, 38, 0.1);">
+        <h3 style="color:var(--danger);">⚠️ System Integrity & Recovery Tools</h3>
+        <p style="font-size:0.85rem; color:var(--text);">In case of UI corruption or failed updates, use the force recovery options below.</p>
+        <div style="display:flex; gap:10px; margin-top:20px;">
+            <button class="danger" style="background:var(--danger);" onclick="forceStateWipe()">Force Global Cache Purge (F5 Root)</button>
+            <button class="secondary" onclick="exportEmergencyBackup()">Export Local DB Metadata (.json)</button>
+        </div>
+    </div>
+</div>

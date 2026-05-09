@@ -1,0 +1,240 @@
+<style>
+    /* ADVANCED TASK UI STYLING - DE-CONGESTED */
+    .task-alert-banner {
+        background: linear-gradient(90deg, #ef4444, #b91c1c);
+        color: white;
+        padding: 10px 20px;
+        border-radius: 8px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+        box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.3);
+    }
+    .task-alert-banner.all-clear {
+        background: linear-gradient(90deg, #10b981, #059669);
+        box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.3);
+    }
+    
+    /* Compact Badges */
+    .priority-badge {
+        padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .priority-High { background: rgba(239, 68, 68, 0.1); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+    .priority-Medium { background: rgba(245, 158, 11, 0.1); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+    .priority-Low { background: var(--bg); color: var(--text-muted); border: 1px solid var(--border); }
+    
+    .status-overdue { background: rgba(239, 68, 68, 0.1); color: #f87171; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; font-weight: bold; border: 1px solid rgba(239, 68, 68, 0.3); display: inline-flex; align-items: center; gap: 4px;}
+    
+    /* Sidebar Cards */
+    .shipment-card {
+        padding: 12px 15px; border-bottom: 1px solid var(--border); cursor: pointer; transition: all 0.2s; position: relative; background: transparent; border-left: 4px solid transparent;
+    }
+    .shipment-card:hover { background: var(--bg); }
+    .shipment-card.active { background: var(--surface); border-left: 4px solid var(--primary); box-shadow: 0 2px 10px rgba(0,0,0,0.05); z-index: 10; }
+    .shipment-card.has-stuck { border-left-color: var(--danger) !important; }
+    
+    /* Sidebar Hide Class */
+    .sidebar-hidden { display: none !important; }
+
+    /* De-congested Kanban */
+    .kanban-col {
+        flex: 1; min-width: 250px; max-width: 400px; background: var(--bg); border-radius: 8px; border: 1px solid var(--border); display: flex; flex-direction: column;
+    }
+    .kanban-header {
+        padding: 10px 15px; border-bottom: 2px solid var(--border); font-weight: bold; color: var(--text-muted); display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem;
+    }
+    
+    /* Maximized Bulk List */
+    .bulk-task-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; table-layout: auto; }
+    .bulk-task-table th, .bulk-task-table td { padding: 10px 15px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle; }
+    .bulk-task-table th { background: var(--bg); font-weight: bold; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; position: sticky; top: 0; z-index: 10; }
+    .bulk-task-table tr:hover { background: var(--bg); }
+    
+    .view-toggle-btn {
+        padding: 6px 12px; background: var(--surface); border: 1px solid var(--border); color: var(--text-muted); cursor: pointer; font-size: 0.85rem; font-weight: bold; transition: 0.2s;
+    }
+    .view-toggle-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+    .view-toggle-btn:first-child { border-radius: 6px 0 0 6px; border-right: none; }
+    .view-toggle-btn:last-child { border-radius: 0 6px 6px 0; }
+    
+    .modal-overlay {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(4px);
+        z-index: 10005; display: flex; align-items: center; justify-content: center;
+    }
+</style>
+
+<div id="tasks" class="main-tab" style="height: calc(100vh - 100px); display: flex; flex-direction: column;">
+    
+    <div id="global-alert-dashboard">
+        </div>
+
+    <div class="sticky-sub-nav" style="margin-bottom: 15px; border-radius: 8px;">
+        <button class="secondary sidebar-filter-btn" style="background: var(--surface); color: var(--text); border-color: var(--border);" onclick="setTaskFilter('All')">All Tasks</button>
+        <button class="secondary sidebar-filter-btn" style="background: var(--surface); color: var(--text); border-color: var(--border);" onclick="setTaskFilter('Active')">🔄 Active</button>
+        <button class="secondary sidebar-filter-btn" style="background: var(--surface); color: var(--text); border-color: var(--border);" onclick="setTaskFilter('Stuck')">⚠️ Stuck / Overdue</button>
+        <button class="secondary sidebar-filter-btn" style="background: var(--surface); color: var(--text); border-color: var(--border);" onclick="setTaskFilter('Done')">✅ Completed</button>
+    </div>
+
+    <div style="display: flex; gap: 20px; flex-grow: 1; min-height: 0;">
+        
+        <div id="task-sidebar" style="width: 300px; background: var(--surface); border-radius: 8px; border: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05); flex-shrink: 0;">
+            <div style="padding: 12px 15px; background: var(--bg); border-bottom: 1px solid var(--border); font-weight: bold; color: var(--text); display: flex; justify-content: space-between; align-items: center;">
+                <span>📦 Portfolios (Comm. Inv)</span>
+                <span id="sidebar-count-badge" style="background: var(--primary); color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem;">0</span>
+            </div>
+            
+            <div style="padding: 10px; background: var(--surface); border-bottom: 1px solid var(--border);">
+                <select id="task-fy-filter" onchange="renderTaskSidebar()" style="width: 100%; margin-bottom: 8px; padding: 6px; font-size: 0.8rem; border-radius: 4px;">
+                    <option value="">All Financial Years</option>
+                </select>
+                <input type="text" id="task-shipment-search" placeholder="🔍 Search Invoice or Buyer..." oninput="renderTaskSidebar()" style="width: 100%; padding: 6px 10px; font-size: 0.8rem; margin: 0; border-radius: 4px;">
+            </div>
+
+            <div id="task-shipment-list" style="flex-grow: 1; overflow-y: auto; background: var(--surface);">
+                </div>
+        </div>
+
+        <div style="flex-grow: 1; display: flex; flex-direction: column; min-width: 0; background: var(--surface); border-radius: 8px; border: 1px solid var(--border); box-shadow: 0 4px 6px rgba(0,0,0,0.05); overflow: hidden;">
+            
+            <div id="workspace-empty-state" style="flex-grow: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text-muted); background: var(--bg);">
+                <div style="font-size: 4rem; margin-bottom: 15px;">🚢</div>
+                <h2 style="margin: 0 0 10px 0; color: var(--primary);">Shipment Command Center</h2>
+                <p style="margin: 0; font-size: 1.1rem;">Select a Commercial Invoice portfolio from the left to manage its tasks.</p>
+            </div>
+
+            <div id="workspace-active-state" class="hidden" style="display: none; flex-direction: column; height: 100%;">
+                
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; padding: 15px 20px; border-bottom: 1px solid var(--border); background: var(--bg);">
+                    <div style="flex-grow: 1;">
+                        <div style="display: flex; align-items: center; gap: 15px;">
+                            <button class="secondary" onclick="toggleTaskSidebar()" title="Toggle Portfolios Menu" style="padding: 4px 10px; font-size: 1.1rem; cursor: pointer; border-radius: 4px; border: 1px solid var(--border);">☰</button>
+                            
+                            <h2 id="board-invoice-title" style="margin: 0; font-size: 1.4rem; color: var(--text);">INV-000</h2>
+                            <span id="board-kpi-badge" style="padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: bold;">Loading...</span>
+                        </div>
+                        <div id="board-invoice-buyer" style="color: var(--text-muted); font-size: 0.85rem; margin-top: 5px;">Buyer Name</div>
+                        
+                        <div id="board-progress-container" style="margin-top: 12px; width: 100%; max-width: 350px; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden;">
+                            <div id="board-progress-fill" style="height: 100%; width: 0%; transition: width 0.5s ease-out;"></div>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 10px;">
+                        <div style="display: flex; gap: 10px;">
+                            <button class="secondary" onclick="autoGenerateExportTasks()" style="background: var(--surface); border-color: #38bdf8; color: #0284c7; padding: 6px 12px; font-size: 0.85rem;">⚡ Auto-Checklist</button>
+                            <button onclick="openNewTaskModal()" style="padding: 6px 12px; font-size: 0.85rem;">+ Add Task</button>
+                        </div>
+                        <div style="display: flex;">
+                            <button id="btn-view-kanban" class="view-toggle-btn active" onclick="toggleTaskView('kanban')">🗂️ Kanban</button>
+                            <button id="btn-view-list" class="view-toggle-btn" onclick="toggleTaskView('list')">📄 Bulk List</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="view-kanban" style="display: flex; gap: 15px; flex-grow: 1; overflow-x: auto; padding: 15px; background: var(--surface);">
+                    <div class="kanban-col" ondragover="allowTaskDrop(event)" ondrop="dropTask(event, 'Pending')">
+                        <div class="kanban-header" style="border-bottom-color: var(--border);">
+                            <span>📋 To-Do</span><span id="kb-count-Pending" style="background: var(--border); padding: 2px 8px; border-radius: 12px; font-size: 0.75rem;">0</span>
+                        </div>
+                        <div id="kb-col-Pending" style="padding: 10px; flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;"></div>
+                    </div>
+
+                    <div class="kanban-col" style="background: rgba(59, 130, 246, 0.05); border-color: rgba(59, 130, 246, 0.2);" ondragover="allowTaskDrop(event)" ondrop="dropTask(event, 'Processing')">
+                        <div class="kanban-header" style="border-bottom-color: var(--info); color: var(--info);">
+                            <span>🔄 Processing</span><span id="kb-count-Processing" style="background: rgba(14, 165, 233, 0.1); padding: 2px 8px; border-radius: 12px; font-size: 0.75rem;">0</span>
+                        </div>
+                        <div id="kb-col-Processing" style="padding: 10px; flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;"></div>
+                    </div>
+
+                    <div class="kanban-col" style="background: rgba(239, 68, 68, 0.05); border-color: rgba(239, 68, 68, 0.2);" ondragover="allowTaskDrop(event)" ondrop="dropTask(event, 'Stuck')">
+                        <div class="kanban-header" style="border-bottom-color: var(--danger); color: var(--danger);">
+                            <span>⚠️ Stuck / Query</span><span id="kb-count-Stuck" style="background: rgba(239, 68, 68, 0.1); padding: 2px 8px; border-radius: 12px; font-size: 0.75rem;">0</span>
+                        </div>
+                        <div id="kb-col-Stuck" style="padding: 10px; flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;"></div>
+                    </div>
+
+                    <div class="kanban-col" style="background: rgba(34, 197, 94, 0.05); border-color: rgba(34, 197, 94, 0.2);" ondragover="allowTaskDrop(event)" ondrop="dropTask(event, 'Completed')">
+                        <div class="kanban-header" style="border-bottom-color: var(--success); color: var(--success);">
+                            <span>✅ Completed</span><span id="kb-count-Completed" style="background: rgba(34, 197, 94, 0.1); padding: 2px 8px; border-radius: 12px; font-size: 0.75rem;">0</span>
+                        </div>
+                        <div id="kb-col-Completed" style="padding: 10px; flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;"></div>
+                    </div>
+                </div>
+
+                <div id="view-list" class="hidden" style="display: none; flex-direction: column; flex-grow: 1; background: var(--surface); overflow: hidden;">
+                    <div style="padding: 10px 15px; background: var(--bg); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-weight: bold; color: var(--text-muted); font-size: 0.85rem;">Bulk Operations Mode</span>
+                        <button onclick="bulkCompleteTasks()" style="background: var(--success); border: none; padding: 6px 15px; font-size: 0.85rem;">✅ Mark Selected as Completed</button>
+                    </div>
+                    <div style="flex-grow: 1; overflow-y: auto;">
+                        <table class="bulk-task-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 40px; text-align: center;"><input type="checkbox" id="bulk-select-all" onclick="toggleBulkSelectAll(this)"></th>
+                                    <th style="width: 80px;">Priority</th>
+                                    <th style="width: 250px;">Task Description</th>
+                                    <th>Notes / Queries</th>
+                                    <th style="width: 120px;">Due Date</th>
+                                    <th style="width: 120px;">Status</th>
+                                    <th style="width: 80px; text-align: right;">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="bulk-list-body">
+                                </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="new-task-modal" class="hidden modal-overlay" style="display: none;">
+    <div class="card" style="width: 500px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);">
+        <h3 style="margin-top: 0; border-bottom: 1px solid var(--border); padding-bottom: 10px; color: var(--primary);">➕ Add / Edit Task</h3>
+        <form id="task-form" onsubmit="submitNewTask(event)">
+            <input type="hidden" id="nt-id">
+            
+            <div style="margin-bottom: 15px;">
+                <label>Task Title / Description</label>
+                <input type="text" id="nt-title" placeholder="e.g. Courier original docs to Buyer" required>
+            </div>
+            
+            <div class="grid-2" style="margin-bottom: 15px;">
+                <div>
+                    <label>Priority</label>
+                    <select id="nt-priority" required>
+                        <option value="High">🔴 High / Urgent</option>
+                        <option value="Medium" selected>🟡 Medium / Normal</option>
+                        <option value="Low">⚪ Low / Whenever</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Due Date</label>
+                    <input type="date" id="nt-date">
+                </div>
+            </div>
+
+            <div style="margin-bottom: 15px;">
+                <label>Initial Status</label>
+                <select id="nt-status" required>
+                    <option value="Pending">📋 To-Do / Pending</option>
+                    <option value="Processing">🔄 Processing</option>
+                    <option value="Stuck">⚠️ Stuck / Query</option>
+                    <option value="Completed">✅ Completed</option>
+                </select>
+            </div>
+            
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 25px;">
+                <button type="button" class="secondary" onclick="closeNewTaskModal()">Cancel</button>
+                <button type="submit" style="background: var(--primary);">💾 Save Task</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+

@@ -1,0 +1,113 @@
+<style>
+    .ledger-filter-box {
+        background-color: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+        padding: 15px 20px; display: flex; justify-content: flex-start; align-items: flex-end;
+        margin-bottom: 20px; flex-wrap: nowrap; gap: 12px; overflow-x: auto; 
+    }
+    .ledger-filter-item { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
+    .ledger-filter-label { font-size: 0.75rem; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
+    .ledger-filter-input { padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.9rem; background: var(--surface); color: var(--text); outline: none; box-sizing: border-box; height: 38px; }
+    .ledger-filter-btn { height: 38px; border: 1px solid var(--border); background: var(--surface); border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; flex-shrink: 0; }
+    .ledger-filter-btn:hover { background: var(--bg); }
+</style>
+
+<div id="exporter-data" class="main-tab">
+    
+    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px;">
+        <div>
+            <h2 style="margin: 0; color: var(--primary);">🛡️ Company Compliance Vault</h2>
+            <p style="margin: 5px 0 0 0; color: var(--text-muted);">Secure repository for mandatory trade licenses (IEC, GST, APEDA, FSSAI).</p>
+        </div>
+    </div>
+
+    <div class="grid-2">
+        <div class="card" style="border-top: 4px solid var(--primary);">
+            <h3 style="margin-bottom: 15px;">Add Compliance Document</h3>
+            <form onsubmit="addExporterDoc(event)">
+                <div class="grid-2">
+                    <div style="grid-column: span 2;">
+                        <label>Document Name</label>
+                        <select id="ed-name" required>
+                            <option value="IEC Certificate">IEC Certificate</option>
+                            <option value="GST Certificate">GST Certificate</option>
+                            <option value="APEDA RCAC">APEDA RCAC</option>
+                            <option value="FSSAI License">FSSAI License</option>
+                            <option value="Spice Board RCMC">Spice Board RCMC</option>
+                            <option value="FIEO RCMC">FIEO RCMC</option>
+                            <option value="LUT Declaration">LUT Declaration</option>
+                            <option value="Customs AD Code">Customs AD Code Registration</option>
+                            <option value="Other">Other / Custom</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Document No / Ref</label>
+                        <input type="text" id="ed-no" required>
+                    </div>
+                    <div>
+                        <label>Issue Date</label>
+                        <input type="date" id="ed-issue">
+                    </div>
+                    <div style="grid-column: span 2; background: rgba(245, 158, 11, 0.05); padding: 10px; border-radius: 4px; border: 1px dashed #fcd34d;">
+                        <label style="color: #b45309; margin-bottom: 5px;">Valid Until (Expiry Date)</label>
+                        <p style="font-size: 0.75rem; color: #b45309; margin-bottom: 5px;">Leave blank if the document has lifetime validity (e.g. GST).</p>
+                        <input type="date" id="ed-expiry" style="margin-bottom: 0;">
+                    </div>
+                    <div style="grid-column: span 2;">
+                        <label>Secure File Link (Google Drive / PDF URL)</label>
+                        <input type="text" id="ed-link" placeholder="https://drive.google.com/file/d/...">
+                    </div>
+                </div>
+                <button type="submit" style="margin-top: 15px; width: 100%;">💾 Store in Vault</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h3 style="margin-bottom: 15px;">Vault Registry & Expiry Radar</h3>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 15px;">The system automatically monitors expiry dates and triggers alerts 30 days before expiration.</p>
+            
+            <div class="ledger-filter-box" style="padding: 10px 15px; margin-bottom: 15px;">
+                <div class="ledger-filter-item">
+                    <span class="ledger-filter-label">STATUS</span>
+                    <select class="ledger-filter-input" id="filter-status-exp" onchange="renderExporterData()" style="width: 110px;">
+                        <option value="">All</option>
+                        <option value="Valid">Valid</option>
+                        <option value="Expiring">Expiring Soon</option>
+                        <option value="Expired">Expired</option>
+                    </select>
+                </div>
+                <div class="ledger-filter-item" style="flex: 1;">
+                    <span class="ledger-filter-label">SEARCH</span>
+                    <input type="text" class="ledger-filter-input" id="filter-search-exp" placeholder="Search Document Name or No..." oninput="renderExporterData()" style="width: 100%;">
+                </div>
+                <div class="ledger-filter-item">
+                    <span class="ledger-filter-label">SHOW</span>
+                    <select class="ledger-filter-input" id="filter-limit-exp" onchange="renderExporterData()" style="width: 70px;">
+                        <option value="10">10</option>
+                        <option value="25" selected>25</option>
+                        <option value="50">50</option>
+                        <option value="all">All</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: 8px; flex-shrink: 0;">
+                    <button type="button" class="ledger-filter-btn" style="color: #ef4444; width: 38px; padding: 0;" title="Reset Filters" onclick="resetExporterFilters()">✖</button>
+                </div>
+            </div>
+
+            <div style="overflow-x: auto;">
+                <table id="exporter-table" style="font-size: 0.85rem; width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background: var(--bg); text-align: left;">
+                            <th style="padding: 10px; border-bottom: 1px solid var(--border);">Document Name</th>
+                            <th style="padding: 10px; border-bottom: 1px solid var(--border);">Reference No</th>
+                            <th style="padding: 10px; border-bottom: 1px solid var(--border);">Expiry Status</th>
+                            <th style="padding: 10px; border-bottom: 1px solid var(--border); text-align:right;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+
