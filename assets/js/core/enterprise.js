@@ -542,13 +542,19 @@ window.addEventListener('click', throttledActivity);
 window.addEventListener('scroll', throttledActivity);
 
 window.performLogout = function() {
-    // SECURITY UPGRADE: Force a final backup before session termination
+    // FIX: If no user is logged in, just close the app (X button on login screen)
+    if (!sessionStorage.getItem('jft_user')) {
+        if (typeof ipcRenderer !== 'undefined' && ipcRenderer) {
+            ipcRenderer.send('confirm-exit');
+        }
+        return;
+    }
+
+    // SECURITY: Force a final backup before session termination
     if (typeof ipcRenderer !== 'undefined' && ipcRenderer) {
         if (typeof window.saveData === 'function') {
             console.log("[LOGOUT] Forcing final master backup...");
             window.saveData(true); 
-        } else if (typeof triggerManualMasterBackup === 'function') {
-            triggerManualMasterBackup();
         }
     } else {
         if (!confirm("Are you sure you want to log out of SMA ERP?")) return;
