@@ -211,7 +211,7 @@ function populateFinanceInvoiceDropdowns(type) {
     const sortedDocs = [...db.docs].filter(d => d.type === 'Commercial Invoice').sort((a,b) => new Date(b.date) - new Date(a.date));
     
     sortedDocs.forEach(d => {
-        options += `<option value="${escapeHTML(d.id)}">${escapeHTML(d.no)} | ${escapeHTML(d.buyer.split('\n')[0])}</option>`;
+        options += `<option value="${escapeHTML(d.id)}">${escapeHTML(d.no)} | ${escapeHTML((d.buyer || 'No Buyer').split('\n')[0])}</option>`;
     });
 
     const currentVal = select.value;
@@ -550,7 +550,7 @@ function populateForexInvoices() {
     const currentVal = select.value;
     select.innerHTML = '<option value="">-- Select Commercial Invoice --</option>';
     db.docs.filter(d => d.type === 'Commercial Invoice').forEach(d => {
-        select.innerHTML += `<option value="${d.id}">${escapeHTML(d.no)} | ${escapeHTML(d.buyer.split('\n')[0])}</option>`;
+        select.innerHTML += `<option value="${d.id}">${escapeHTML(d.no)} | ${escapeHTML((d.buyer || 'No Buyer').split('\n')[0])}</option>`;
     });
     if (currentVal) select.value = currentVal;
 }
@@ -906,7 +906,7 @@ window.renderPnL = function() {
         const currentRef = refSelect.value;
         refSelect.innerHTML = '<option value="">-- General / No Invoice Ref --</option>';
         db.docs.filter(d => d.type === 'Commercial Invoice').forEach(d => {
-            refSelect.innerHTML += `<option value="${d.id}">${escapeHTML(d.no)} (${escapeHTML(d.buyer.split('\n')[0])})</option>`;
+            refSelect.innerHTML += `<option value="${d.id}">${escapeHTML(d.no)} (${escapeHTML((d.buyer || 'No Buyer').split('\n')[0])})</option>`;
         });
         refSelect.value = currentRef; 
     }
@@ -1118,7 +1118,7 @@ window.renderAgingReport = function() {
         }
 
         const displayDate = typeof formatDateIN === 'function' ? formatDateIN(doc.date) : doc.date;
-        const buyerName = escapeHTML(doc.buyer.split('\n')[0]);
+        const buyerName = escapeHTML((doc.buyer || 'No Buyer').split('\n')[0]);
         const curr = escapeHTML(doc.currency || 'USD');
 
         return `<tr style="${rowStyle}">
@@ -1165,7 +1165,7 @@ window.sendOverdueReminder = function(docId, days, amt, curr) {
     const doc = db.docs.find(d => d.id === docId);
     if (!doc) return;
 
-    const buyerName = doc.buyer.split('\n')[0];
+    const buyerName = (doc.buyer || 'No Buyer').split('\n')[0];
     const myCompany = (db.profile && db.profile.name) ? db.profile.name : 'JFT Agro Overseas';
     
     let subject = `Payment Reminder: Invoice ${doc.no} is ${days} Days Overdue`;
@@ -1291,7 +1291,7 @@ window.renderShipmentPnL = function() {
 
             return `<tr>
                 <td><b>${escapeHTML(doc.no)}</b></td>
-                <td>${escapeHTML(doc.buyer.split('\n')[0])}</td>
+                <td>${escapeHTML((doc.buyer || 'No Buyer').split('\n')[0])}</td>
                 <td style="color:var(--success);">₹${revenue.toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
                 <td style="color:var(--danger);">₹${cost.toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
                 <td style="font-weight:bold; color:${profit >= 0 ? 'var(--primary)' : 'var(--danger)'};">₹${profit.toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
@@ -1345,7 +1345,7 @@ window.exportFinanceFiltered = function(type) {
         data.forEach(f => csv += `"${f.date}","${f.docNo}","${f.realFcy}","${f.rate}","${f.realInr}","${f.ebrc}","${f.hedgeId ? 'Yes' : 'No'}"\n`);
     } else if (type === 'aging') {
         csv += `Invoice No,Date,Buyer,Expected,Realized,Pending Balance,Status\n`;
-        data.forEach(d => csv += `"${d.no}","${d.date}","${d.buyer.split('\n')[0]}","${d.expectedValue}","${d.realizedValue}","${d.balancePending}","${d.status}"\n`);
+        data.forEach(d => csv += `"${d.no}","${d.date}","${(d.buyer || 'No Buyer').split('\n')[0]}","${d.expectedValue}","${d.realizedValue}","${d.balancePending}","${d.status}"\n`);
     }
 
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -1552,7 +1552,7 @@ window.populateDossierInvoices = function() {
     
     const sortedDocs = [...db.docs].filter(d => d.type === 'Commercial Invoice').sort((a,b) => new Date(b.date) - new Date(a.date));
     sortedDocs.forEach(d => {
-        select.innerHTML += `<option value="${d.id}">${escapeHTML(d.no)} | ${escapeHTML(d.buyer.split('\n')[0])}</option>`;
+        select.innerHTML += `<option value="${d.id}">${escapeHTML(d.no)} | ${escapeHTML((d.buyer || 'No Buyer').split('\n')[0])}</option>`;
     });
     
     if (currentVal) { select.value = currentVal; renderDossierView(); } 
@@ -1607,7 +1607,7 @@ window.renderDossierView = function() {
     empty.classList.add('hidden');
 
     document.getElementById('dossier-lock-status').innerHTML = doc.isLocked ? '🔒 ACCOUNTING LOCKED' : '🔓 OPEN (EDITABLE)';
-    document.getElementById('dos-buyer').innerText = doc.buyer.split('\n')[0];
+    document.getElementById('dos-buyer').innerText = (doc.buyer || 'No Buyer').split('\n')[0];
     document.getElementById('dos-date').innerText = typeof formatDateIN === 'function' ? formatDateIN(doc.date) : doc.date;
     document.getElementById('dos-pod').innerText = doc.podFinal || doc.pod || 'N/A';
     document.getElementById('dos-value').innerText = `${doc.currency} ${doc.total || doc.fobTotal || doc.cifTotal}`;

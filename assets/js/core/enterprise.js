@@ -155,11 +155,8 @@ const Enterprise = {
                     this.isOnline = true;
                     this.macro.updated = new Date().toLocaleTimeString();
                     
-                    // Simulated Macro (Correlated to USD/INR volatility)
-                    const shift = (data.rates.INR - 83.00) * 0.4;
-                    this.macro.dxy = 103.50 + shift;
-                    this.macro.oil = 82.00 + (Math.random() * 5); 
-                    this.macro.gold = 2150.00 + (shift * 20);
+                    // Store the live USD/INR rate for use across all financial modules
+                    // Note: Oil, DXY, and Gold data are not fetched here to avoid showing estimated values.
                 }
                 
                 // 2. Validate Keys via a silent "Ping"
@@ -237,8 +234,9 @@ const Enterprise = {
             const customGK = localStorage.getItem('jft_ai_api_key') || dbGK;
             const customOK = localStorage.getItem('jft_openai_api_key') || dbOK;
 
-            let defaultGK = "AIzaSyCRubhGsuugQThhxkURvvzt2dkwVCNu8QM"; // MASTER FAILOVER
-            let defaultOK = "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";
+            // FIX: No hardcoded fallback keys. Users must enter their own API keys in Settings.
+            let defaultGK = null;
+            let defaultOK = null;
 
             const openaiBase = "https://api.openai.com";
 
@@ -587,12 +585,10 @@ window.unlockSession = async function(event) {
 
     btn.innerText = "Verifying...";
 
-    // 1. OFFLINE CAPABLE PIN SYSTEM (Fallback & Fast Check)
+    // 1. OFFLINE CAPABLE PIN CHECK: Matches against the password stored on the user record
     if (window.db && window.db.users) {
         const u = window.db.users.find(x => x.username === uname);
-        // By default, system sets '1234' on local user creation
-        // Also supports checking against user defined offline pass
-        if (u && (pass === u.password || pass === '1234')) {
+        if (u && u.password && pass === u.password) {
             _grantUnlock(btn);
             return;
         }
@@ -765,31 +761,52 @@ window.handleUpdateFileUpload = async function(input) {
     const progressText = document.getElementById('upload-percent');
     
     if (progressArea) progressArea.style.display = 'block';
-    Enterprise.notify(`Initializing Deployment for bin: ${file.name}...`, "info");
+    if (progressBar) progressBar.style.setProperty('width', '0%');
+    if (progressText) progressText.innerText = '0%';
+    Enterprise.notify(`Processing update file: ${file.name}...`, "info");
 
-    let progress = 0;
-    const interval = setInterval(() => {
-        progress += Math.random() * 15;
-        if (progress >= 100) {
-            progress = 100;
-            clearInterval(interval);
-            finalizeUpdateDeployment(file.name);
+    // FIX: Real progress based on FileReader (no fake animation)
+    const reader = new FileReader();
+    reader.onprogress = (e) => {
+        if (e.lengthComputable) {
+            const pct = Math.round((e.loaded / e.total) * 90);
+            if (progressBar) progressBar.style.setProperty('width', `${pct}%`);
+            if (progressText) progressText.innerText = `${pct}%`;
         }
-        if (progressBar) progressBar.style.setProperty('width', `${progress}%`);
-        if (progressText) progressText.innerText = `${Math.round(progress)}%`;
-    }, 400);
+    };
+    reader.onload = () => {
+        if (progressBar) progressBar.style.setProperty('width', '100%');
+        if (progressText) progressText.innerText = '100%';
+        finalizeUpdateDeployment(file.name);
+    };
+    reader.onerror = () => {
+        Enterprise.notify("Failed to read update file.", "danger");
+        if (progressArea) progressArea.style.display = 'none';
+    };
+    reader.readAsArrayBuffer(file);
 };
 
 async function finalizeUpdateDeployment(fileName) {
     try {
-        const nextVer = '8.3.2'; // Automated version increment
+        // FIX: Extract version from filename (e.g. SMA-ERP-v8.3.2-setup.exe → 8.3.2)
+        // Falls back to prompting admin for version number
+        const vMatch = fileName.match(/v?(\d+\.\d+\.\d+)/i);
+        let nextVer = vMatch ? vMatch[1] : null;
+        if (!nextVer) {
+            nextVer = prompt(`Enter the version number for this update (e.g. 8.4.0):`);
+            if (!nextVer || !nextVer.trim()) {
+                Enterprise.notify("Deployment cancelled: No version number provided.", "warning");
+                return;
+            }
+            nextVer = nextVer.trim();
+        }
         if (typeof cloudDB !== 'undefined') {
             await cloudDB.collection('system_info').doc('update_config').set({
                 version: nextVer,
                 releaseDate: new Date().toISOString(),
                 binaryName: fileName,
                 status: 'stable',
-                changelog: "Stability improvements and UI security hardening."
+                changelog: `Update deployed from file: ${fileName}`
             });
         }
         
@@ -819,4 +836,4 @@ window.exportEmergencyBackup = function() {
     a.download = `JFT_ERP_Emergency_Backup_${new Date().toISOString().split('T')[0]}.json`;
     a.click();
     Enterprise.notify("Emergency DB Backup Exported Successfully.", "success");
-};
+};

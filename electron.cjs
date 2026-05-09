@@ -71,12 +71,8 @@ ipcMain.handle('get-secure-env', (event, key) => {
         const val = process.env[key];
         if (val) return val;
         
-        // Internal Defaults (Securely held in Main Process)
-        const DEFAULTS = {
-            'GEMINI_API_KEY': 'AIzaSyCRubhGsuugQThhxkURvvzt2dkwVCNu8QM',
-            'OPENAI_API_KEY': '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'
-        };
-        return DEFAULTS[key] || null;
+        // FIX: No hardcoded fallback keys. Users enter their own keys in Settings.
+        return null;
     }
     console.warn(`[SECURITY] Blocked unauthorized env variable request: ${key}`);
     return null; 

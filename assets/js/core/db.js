@@ -12,16 +12,13 @@ const firebaseConfig = {
     appId: "1:695350467294:web:7f098b8137fdfbf21f004f"
 };
 
-// Initialize Firestore with modern settings to avoid host-override and persistence warnings
 // Initialize Firestore
 firebase.initializeApp(firebaseConfig);
 const cloudDB = firebase.firestore();
 
 // MODERN OFFLINE SYNC (Compat v10 Layer)
-// Using an IIFE to handle persistence without blocking the main thread or drowning in warnings
 (function() {
     try {
-        // Only enable persistence if not already enabled. Multi-tab synchronization is crucial for enterprise apps.
         cloudDB.enablePersistence({ synchronizeTabs: true }).catch((err) => {
             if (err.code === 'failed-precondition') console.debug("[DB] Persistence: Multiple tabs open.");
             else if (err.code === 'unimplemented') console.warn("[DB] Persistence: Browser unsupported.");
@@ -41,7 +38,7 @@ if (rawCid.includes(' ')) {
 const ACTIVE_CID = rawCid;
 localStorage.setItem('jft_active_cid', ACTIVE_CID);
 localStorage.setItem('jft_active_company', ACTIVE_CID);
-window.ACTIVE_CID = ACTIVE_CID; // Global access for modules
+window.ACTIVE_CID = ACTIVE_CID;
 
 // Helper for multi-tenancy cloud references
 function getCloudRef(col) {
@@ -52,24 +49,28 @@ function getCloudRef(col) {
 const STORAGE_KEY = 'jft_db_' + ACTIVE_CID;
 const COMPANIES_KEY = 'jft_companies_registry';
 
-// Initialize global companies registry with demo entities
+// FIX: Initialize company registry with ONLY the real company — no demo/test entries.
 if (!localStorage.getItem(COMPANIES_KEY)) {
     localStorage.setItem(COMPANIES_KEY, JSON.stringify([
-        { id: 'JFT_MAIN', name: 'JFT AGRO OVERSEAS LLP', logo: '🌐', industry: 'Logistics', prefix: 'JFT' },
-        { id: 'CID_ABC', name: 'ABC Textiles', logo: '🧥', industry: 'Garments', prefix: 'ABC' },
-        { id: 'CID_BCD', name: 'BCD Overseas', logo: '🚢', industry: 'Import/Export', prefix: 'BCD' }
+        { id: 'JFT_MAIN', name: 'JFT AGRO OVERSEAS LLP', logo: '🌐', industry: 'Agro Export / Logistics', prefix: 'JFT' }
     ]));
 } else {
-    // FORCE MIGRATION: Update legacy names if they exist in local storage
+    // MIGRATION: Clean up legacy names and ensure all companies have required fields
     let registry = JSON.parse(localStorage.getItem(COMPANIES_KEY) || '[]');
     let changed = false;
+
+    // FIX: Remove stale demo companies that were added by old code
+    const demoIds = ['CID_ABC', 'CID_BCD'];
+    const beforeLen = registry.length;
+    registry = registry.filter(c => !demoIds.includes(c.id));
+    if (registry.length < beforeLen) changed = true;
+
     registry.forEach(c => {
         if (c.id === 'JFT_MAIN' && (c.name === 'JFT Main Office' || c.name === 'JFT Agro Overseas')) {
             c.name = 'JFT AGRO OVERSEAS LLP';
             c.logo = '🌐';
             changed = true;
         }
-        // Ensure every company has a prefix (derived from name if missing)
         if (!c.prefix) {
             c.prefix = c.name.split(' ')[0].slice(0, 3).toUpperCase();
             changed = true;
@@ -84,15 +85,15 @@ window.getManagedCompanies = function() {
 
 window.getActiveCompany = function() {
     const list = window.getManagedCompanies();
-    return list.find(c => c.id === ACTIVE_CID) || { id: 'SMA', name: 'SMA ERP', prefix: 'SMA' };
+    return list.find(c => c.id === ACTIVE_CID) || { id: 'JFT_MAIN', name: 'JFT AGRO OVERSEAS LLP', prefix: 'JFT' };
 };
 
 window.switchCompany = function(cid) {
     if (cid === 'NEW') {
-        const name = prompt("Enter New Company Name (e.g. ABC Textiles):");
-        if (name) {
+        const name = prompt("Enter New Company Name (e.g. My Import Co.):");
+        if (name && name.trim()) {
             const ind = prompt("Industry Segment (e.g. Garments, Logistics):") || 'General Business';
-            return window.createNewCompany(name, ind);
+            return window.createNewCompany(name.trim(), ind.trim());
         }
         return;
     }
@@ -102,10 +103,12 @@ window.switchCompany = function(cid) {
     setTimeout(() => location.reload(), 1000);
 };
 
+// FIX: Added prefix field to new company creation
 window.createNewCompany = function(name, industry) {
     const list = window.getManagedCompanies();
     const newId = 'CID_' + Date.now();
-    list.push({ id: newId, name: name, industry: industry, logo: '🏢' });
+    const prefix = name.split(' ')[0].slice(0, 3).toUpperCase();
+    list.push({ id: newId, name: name, industry: industry, logo: '🏢', prefix: prefix });
     localStorage.setItem(COMPANIES_KEY, JSON.stringify(list));
     window.switchCompany(newId);
 };
@@ -122,9 +125,9 @@ if (typeof window.db === 'undefined' || !window.db) {
             meta: { 
                 lastBackup: null, 
                 usdInrRate: 83.50,
-                apiKeys: { gmailClientId: '', forexApiKey: '' }
+                apiKeys: { gmailClientId: '', forexApiKey: '', geminiApiKey: '', openaiApiKey: '' }
             },
-            profile: { name: ACTIVE_CID === 'JFT_MAIN' ? 'JFT Agro Enterprise' : '', address1: '', address2: '', iec: '', gstin: '', lut: '', letterheadImg: null, signatureImg: null, stampImg: null },
+            profile: { name: ACTIVE_CID === 'JFT_MAIN' ? 'JFT AGRO OVERSEAS LLP' : '', address1: '', address2: '', iec: '', gstin: '', lut: '', letterheadImg: null, signatureImg: null, stampImg: null },
             features: { finance: true, logistics: true, inventory: true, costing: true, hr: true, import: true },
             uiConfig: { docTypes: ['Commercial Invoice', 'Proforma Invoice', 'Packing List', 'Phyto Draft'] }, 
             theme: { primary: ACTIVE_CID === 'JFT_MAIN' ? '#0f172a' : '#1e3a8a', secondary: '#3b82f6', accent: '#8b5cf6' },
@@ -137,20 +140,7 @@ if (typeof window.db === 'undefined' || !window.db) {
             chats: [], system_logs: [], customTabs: [], notes: [], clocks: [], freight_rates: [], macro_indicators: []
         };
         
-        // REPAIRED: Robust Company Registry Audit
-        if (window.db.companies) {
-            window.db.companies.forEach(c => {
-                if (c.id === 'JFT_MAIN') c.name = 'JFT AGRO OVERSEAS LLP';
-                if (!c.id) c.id = (typeof generateId === 'function') ? generateId() : 'CO_' + Date.now();
-            });
-        }
-        
         window.isCloudReady = true;
-        
-        // Final fallback: Ensure the module system is initialized
-        if (typeof initApp === 'function') {
-            console.log("[CORE] Data Layer Ready. Ready for UI initialization.");
-        }
     }
 }
 var db = window.db; 
@@ -210,13 +200,12 @@ window.archiveRecord = async function(col, id) {
     if (idx > -1) {
         const localItem = window.db[col][idx];
         
-        // CONCURRENCY CHECK: Verify the record still exists in cloud before archiving
         try {
             const docRef = getCloudRef(col).doc(id);
             const cloudSnap = await docRef.get();
             if(!cloudSnap.exists) {
                 Enterprise.notify("❌ Archive Failed: Record was already deleted by another user.", "danger");
-                window.db[col].splice(idx, 1); // Clean local state
+                window.db[col].splice(idx, 1);
                 return;
             }
 
@@ -239,7 +228,6 @@ window.patchCloudRecord = async function(col, id, updates) {
         
         if (cloudSnap.exists) {
             const cloudData = cloudSnap.data();
-            // Conflict Check: If cloud has a higher timestamp/version than local (simplified)
             if (cloudData._lastSync && updates._lastSync && cloudData._lastSync > updates._lastSync) {
                 if(!confirm("⚠️ DATA COLLISION: Another user has made more recent changes to this record. Do you want to overwrite their changes anyway?")) {
                     return false;
@@ -283,7 +271,7 @@ async function initRealtimeSync() {
     });
 
     cloudDB.collection('users').onSnapshot(snapshot => {
-        if (!window.db.users) window.db.users = []; // SAFEGURAD: Protects against undefined array
+        if (!window.db.users) window.db.users = [];
         
         snapshot.docChanges().forEach(change => {
             const data = change.doc.data();
@@ -319,17 +307,15 @@ window.startEnterpriseSync = function() {
             query = cloudDB.collection('tenants').doc(ACTIVE_CID).collection(col);
         }
         
-        // BULK DATA LAZY LOADING: Truncate active memory ingestion to 18 months rolling horizon
+        // BULK DATA LAZY LOADING: 18 months rolling horizon
         if (['docs', 'expenses', 'forex', 'log_trucks', 'log_containers', 'log_couriers', 'log_vessels', 'inventory_log', 'tasks', 'imports'].includes(col)) {
             const dateHorizon = new Date();
             dateHorizon.setMonth(dateHorizon.getMonth() - 18);
-            const horizonStr = dateHorizon.toISOString().split('T')[0];
             
-            // Tasks and Imports use 'timestamp' for rolling window since they might not have a 'date' field
             if (col === 'tasks' || col === 'imports') {
                 query = query.where('timestamp', '>=', dateHorizon.getTime());
             } else {
-                query = query.where('date', '>=', horizonStr);
+                query = query.where('date', '>=', dateHorizon.toISOString().split('T')[0]);
             }
         }
         
@@ -337,10 +323,9 @@ window.startEnterpriseSync = function() {
 
         query.onSnapshot(snapshot => {
             let hasMeaningfulChanges = false;
-            // SAFEGUARD: Ensure the local collection exists before processing changes
             if (!window.db[col]) window.db[col] = [];
             
-            const dbRef = window.db; // Local pointer to global for speed
+            const dbRef = window.db;
             
             snapshot.docChanges().forEach(change => {
                 const data = change.doc.data();
@@ -385,16 +370,26 @@ window.startEnterpriseSync = function() {
     }, 3000);
 };
 
-// DEBOUNCED UI REFRESH: Prevents massive lag during rapid batch updates from Firestore
-const _debouncedRefreshActiveUI = typeof debounce === 'function' ? debounce(refreshActiveUI, 300) : refreshActiveUI;
+// FIX: Lazy-init debounce — ui.js loads AFTER db.js so debounce is not available at module-load time.
+// Using a wrapper that creates the debounced function on first call, after all scripts are loaded.
+let _debouncedRefreshActiveUIFn = null;
+function _debouncedRefreshActiveUI() {
+    if (!_debouncedRefreshActiveUIFn) {
+        // ui.js is now loaded; create the debounced version once
+        if (typeof window.debounce === 'function') {
+            _debouncedRefreshActiveUIFn = window.debounce(refreshActiveUI, 300);
+        } else {
+            _debouncedRefreshActiveUIFn = refreshActiveUI; // fallback (no debounce)
+        }
+    }
+    _debouncedRefreshActiveUIFn();
+}
 
 function refreshActiveUI() {
     const activeTabId = document.querySelector('.nav-item.active')?.id || 'nav-dashboard';
     
-    // 1. Core Visuals (Always apply)
     if (typeof applyTheme === 'function') applyTheme(); 
     
-    // 2. Tab-Specific Rendering (Performance Boost: Only render what's visible)
     if (activeTabId === 'nav-dashboard' && typeof renderDashboard === 'function') renderDashboard();
     if (activeTabId === 'nav-documents' && typeof renderDocTabsUI === 'function') renderDocTabsUI();
     if (activeTabId === 'nav-finance' && typeof renderPnL === 'function') renderPnL();
@@ -409,13 +404,12 @@ function refreshActiveUI() {
     if (activeTabId === 'nav-attendance' && typeof renderAttendanceWorkspace === 'function') renderAttendanceWorkspace();
     if (activeTabId === 'nav-settings' && typeof initSettingsSystem === 'function') initSettingsSystem();
 
-    // 3. Global Components
     if (typeof updateChatUI === 'function') updateChatUI(); 
     if (typeof renderDrafts === 'function') renderDrafts(); 
 }
 
 async function saveData(isSilentSync = false, forceBackup = false) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(window.db)); // Local Multi-Tenant Snapshot
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(window.db));
     
     const refreshEl = document.getElementById('last-refresh-time');
     if (refreshEl && !isSilentSync) refreshEl.innerText = "Syncing... ⏳";
@@ -423,12 +417,8 @@ async function saveData(isSilentSync = false, forceBackup = false) {
     try {
         let batch = cloudDB.batch();
         let ops = 0;
-        let pendingHashes = {}; // Staging area
+        let pendingHashes = {};
         
-        const updateTimeUI = () => {
-            if (refreshEl) refreshEl.innerText = `☁️ Last Sync: ${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
-        };
-
         const commitBatch = async () => {
             if (ops > 0) {
                 const hashesToCommit = pendingHashes;
@@ -441,7 +431,7 @@ async function saveData(isSilentSync = false, forceBackup = false) {
                 } catch(e) { 
                     console.error("Batch commit failed:", e); 
                     if (refreshEl) refreshEl.innerText = "❌ Sync Partially Failed";
-                    throw e; // Bubble up to stop larger sync
+                    throw e;
                 }
                 batch = cloudDB.batch(); ops = 0;
             }
@@ -464,7 +454,7 @@ async function saveData(isSilentSync = false, forceBackup = false) {
     const currentFirebaseUser = (typeof firebase !== 'undefined' && firebase.auth) ? firebase.auth().currentUser : null;
     const currentUsername = sessionStorage.getItem('jft_user');
 
-    if (!window.db.users) window.db.users = []; // SAFEGUARD
+    if (!window.db.users) window.db.users = [];
     for (const item of window.db.users) {
         if (currentFirebaseUser && item.username && currentUsername && item.username.toLowerCase() === currentUsername.toLowerCase()) {
             item.id = currentFirebaseUser.uid; 
@@ -481,7 +471,7 @@ async function saveData(isSilentSync = false, forceBackup = false) {
                 pendingHashes[syncKey] = hash; ops++;
                 if(ops >= 450) await commitBatch(); 
             } else {
-                hashCache[syncKey] = hash; // Skip silently
+                hashCache[syncKey] = hash;
             }
         }
     }
@@ -502,7 +492,7 @@ async function saveData(isSilentSync = false, forceBackup = false) {
     for (const col of ARRAY_COLLECTIONS) {
         if (col === 'system_logs') continue;
         const currentIds = new Set();
-        if (!window.db[col]) window.db[col] = []; // SAFEGUARD
+        if (!window.db[col]) window.db[col] = [];
         for (const item of window.db[col]) {
             if (!item.id) item.id = (typeof generateId === 'function') ? generateId() : col.slice(0,3) + '_' + Date.now();
             currentIds.add(item.id);
@@ -516,7 +506,7 @@ async function saveData(isSilentSync = false, forceBackup = false) {
             }
         }
         
-        // CLOUD WIPE PROTECTION: If more than 50% of the collection is being deleted, trigger sanity check
+        // CLOUD WIPE PROTECTION
         const deletions = [];
         for (const syncKey of Object.keys(hashCache)) {
             if (syncKey.startsWith(`[${col}]`)) {
@@ -530,7 +520,7 @@ async function saveData(isSilentSync = false, forceBackup = false) {
             if (deletions.length > (cacheSize / 2) && cacheSize > 5 && !isSilentSync) {
                 console.warn(`[SAFETY] Mass Deletion Detected in ${col}! Blocked sync for this collection.`);
                 Enterprise.notify(`Mass data change blocked in ${col}. Contact Support or Admin.`, "danger");
-                continue; // Skip this collection's deletions to protect cloud
+                continue;
             }
             
             for (const del of deletions) {
@@ -546,7 +536,6 @@ async function saveData(isSilentSync = false, forceBackup = false) {
         if (ipcRenderer) {
             ipcRenderer.send('trigger-local-backup', db);
             if (db.meta && db.meta.masterBackupPath) {
-                // BYPASS THROTTLE if forceBackup or Exit event
                 if (forceBackup || !window._lastMasterAutoBackup || Date.now() - window._lastMasterAutoBackup > 600000) {
                     ipcRenderer.send('save-master-hard-drive-backup', db.meta.masterBackupPath, db);
                     window._lastMasterAutoBackup = Date.now();
@@ -575,15 +564,12 @@ if (ipcRenderer) {
             ipcRenderer.send('confirm-exit');
         };
 
-        // Safety timeout: Never hang the app for more than 7 seconds on exit (Extended for backup)
         const safetyTimeout = setTimeout(closeImmediately, 7000);
 
         try {
-            // Only perform sync/backup if a user is active
             if (sessionStorage.getItem('jft_user')) {
-                // If it's a desktop app, we use saveData which now handles the force-backup
                 if (typeof window.saveData === 'function') {
-                    await window.saveData(true, true); // (silent, forceBackup)
+                    await window.saveData(true, true);
                 } else if (typeof saveData === 'function') {
                     await saveData(true, true);
                 }

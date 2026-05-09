@@ -1,3 +1,6 @@
+// FIXED: File must be named vite.config.js (not vite_config.js)
+// Vite automatically looks for this exact filename. Rename the project file accordingly.
+
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
@@ -7,28 +10,30 @@ export default defineConfig({
       registerType: 'autoUpdate',
       injectRegister: 'auto',
       manifest: {
-        name: 'SMA ERP v2',
+        name: 'SMA ERP',
         short_name: 'SMA ERP',
-        description: 'Advanced Secure Enterprise System',
-        theme_color: '#0d1117',
+        description: 'JFT Agro Overseas — Enterprise Resource Planning System',
+        theme_color: '#0f172a',
         background_color: '#0d1117',
         display: 'standalone',
         icons: [
           {
-            src: 'https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/hexagon.svg',
+            src: 'assets/icon.png',
             sizes: '192x192',
-            type: 'image/svg+xml'
+            type: 'image/png'
           },
           {
-            src: 'https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/hexagon.svg',
+            src: 'assets/icon.png',
             sizes: '512x512',
-            type: 'image/svg+xml'
+            type: 'image/png'
           }
         ]
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
         cleanupOutdatedCaches: true,
+        // Skip Firestore/Firebase from service worker cache
+        navigateFallbackDenylist: [/^\/api/, /firebase/, /googleapis/]
       }
     })
   ],
