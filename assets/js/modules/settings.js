@@ -8,7 +8,91 @@ if (!db.uiConfig) db.uiConfig = {};
 if (!db.system_logs) db.system_logs = [];
 if (!db.meta) db.meta = {};
 
-// escapeHTML is defined globally in ui.js — no local copy needed.
+window.escapeHTML = window.escapeHTML || function(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+};
+
+// ============================================================
+// SAFE CONFIRM ENGINE
+// Replaces ALL native confirm()/prompt() calls which cause
+// Electron/Chromium to drop keyboard focus after dismissal,
+// freezing every input in the app until the next full click cycle.
+// ============================================================
+window._scCallback = null;
+window._scTypeRequired = null;
+
+window.showSafeConfirm = function({ title, message, confirmLabel = 'Confirm', confirmColor = 'var(--danger)', icon = '⚠️', typeToConfirm = null, onConfirm } = {}) {
+    const modal     = document.getElementById('safe-confirm-modal');
+    const titleEl   = document.getElementById('safe-confirm-title');
+    const msgEl     = document.getElementById('safe-confirm-message');
+    const iconEl    = document.getElementById('safe-confirm-icon');
+    const okBtn     = document.getElementById('safe-confirm-ok-btn');
+    const typeWrap  = document.getElementById('safe-confirm-type-wrap');
+    const typeInput = document.getElementById('safe-confirm-type-input');
+    const typeLbl   = document.getElementById('safe-confirm-type-label');
+    if (!modal) { if (onConfirm) onConfirm(); return; }
+
+    titleEl.innerText          = title || 'Are you sure?';
+    msgEl.innerHTML            = message || '';
+    iconEl.innerText           = icon;
+    okBtn.innerText            = confirmLabel;
+    okBtn.style.background     = confirmColor;
+    okBtn.style.color          = 'white';
+    okBtn.style.border         = 'none';
+    okBtn.disabled             = !!typeToConfirm;
+    okBtn.style.opacity        = typeToConfirm ? '0.4' : '1';
+
+    window._scCallback     = onConfirm || null;
+    window._scTypeRequired = typeToConfirm || null;
+
+    if (typeToConfirm) {
+        typeWrap.style.display = 'block';
+        typeLbl.innerText      = `Type "${typeToConfirm}" to confirm`;
+        typeInput.placeholder  = typeToConfirm;
+        typeInput.value        = '';
+    } else {
+        typeWrap.style.display = 'none';
+        if (typeInput) typeInput.value = '';
+    }
+    modal.style.display = 'flex';
+    setTimeout(() => { if (typeToConfirm) typeInput?.focus(); else okBtn?.focus(); }, 50);
+};
+window._scValidateType = function() {
+    const input = document.getElementById('safe-confirm-type-input');
+    const okBtn = document.getElementById('safe-confirm-ok-btn');
+    if (!input || !okBtn) return;
+    okBtn.disabled     = input.value.trim() !== window._scTypeRequired;
+    okBtn.style.opacity = okBtn.disabled ? '0.4' : '1';
+};
+window._scConfirm = function() {
+    const modal = document.getElementById('safe-confirm-modal');
+    if (modal) modal.style.display = 'none';
+    if (window._scTypeRequired) {
+        const input = document.getElementById('safe-confirm-type-input');
+        if (!input || input.value.trim() !== window._scTypeRequired) return;
+    }
+    const cb = window._scCallback;
+    window._scCallback = null;
+    window._scTypeRequired = null;
+    if (typeof cb === 'function') cb();
+};
+window._scCancel = function() {
+    const modal = document.getElementById('safe-confirm-modal');
+    if (modal) modal.style.display = 'none';
+    window._scCallback = null;
+    window._scTypeRequired = null;
+};
+document.addEventListener('click', function(e) {
+    const modal = document.getElementById('safe-confirm-modal');
+    if (modal && modal.style.display === 'flex' && e.target === modal) window._scCancel();
+});
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        const modal = document.getElementById('safe-confirm-modal');
+        if (modal && modal.style.display === 'flex') { e.stopPropagation(); window._scCancel(); }
+    }
+});
 
 // ==========================================
 // BOOTLOADER & WATCHDOG SYNC ENGINE
@@ -19,16 +103,6 @@ function initSettingsSystem() {
     if (typeof db === 'undefined') {
         setTimeout(initSettingsSystem, 50);
         return;
-    }
-    
-    // Sync version badge from the single source of truth in enterprise.js
-    const vBadge = document.getElementById('current-version-badge');
-    if (vBadge && typeof Enterprise !== 'undefined' && Enterprise.SoftwareVersion) {
-        vBadge.innerText = `VERSION v${Enterprise.SoftwareVersion}`;
-    }
-    const vSidebar = document.getElementById('software-version-display');
-    if (vSidebar && typeof Enterprise !== 'undefined' && Enterprise.SoftwareVersion) {
-        vSidebar.innerHTML = `<b>System Version:</b> v${Enterprise.SoftwareVersion} Enterprise`;
     }
     
     // Safety: Hide Delete button for JFT_MAIN
@@ -52,40 +126,32 @@ window.deleteCurrentCompany = function() {
     }
 
     const coName = db.profile.name || ACTIVE_CID;
-    
-    // CONFIRMATION 1
-    const step1 = confirm(`🚨 FINAL WARNING: You are about to PERMANENTLY DELETE "${coName}".\n\nThis will wipe all documents, invoices, bank records, and cloud sync logs for THIS business only. This cannot be recovered.\n\nAre you absolutely sure?`);
-    
-    if (step1) {
-        // CONFIRMATION 2: TYPE TO CONFIRM
-        const step2 = prompt(`To PERMANENTLY DELETE this business profile, please type the business name exactly as shown below:\n\n${coName}`);
-        
-        if (step2 === coName) {
-            // EXECUTE DESTRUCTION
+
+    showSafeConfirm({
+        title: '🚨 Delete Business Profile',
+        icon: '🔥',
+        message: `You are about to <b>permanently delete "${escapeHTML(coName)}"</b>.<br><br>
+                  This will wipe all documents, invoices, bank records, and cloud sync data for this business. <b style="color:var(--danger);">This cannot be recovered.</b><br><br>
+                  Type the business name exactly to confirm.`,
+        confirmLabel: 'Permanently Delete',
+        confirmColor: 'var(--danger)',
+        typeToConfirm: coName,
+        onConfirm: function() {
             try {
-                // 1. Remove from global registry
                 const registryKey = 'jft_companies_registry';
                 let registry = JSON.parse(localStorage.getItem(registryKey) || '[]');
                 registry = registry.filter(c => c.id !== ACTIVE_CID);
                 localStorage.setItem(registryKey, JSON.stringify(registry));
-                
-                // 2. Wipe the company database
                 localStorage.removeItem(`jft_db_${ACTIVE_CID}`);
-                
-                // 3. Reset to Main Office
                 localStorage.setItem('jft_active_cid', 'JFT_MAIN');
-                
                 Enterprise.notify("🔥 Business Profile Terminated Successfully. Redirecting...", "success");
                 setTimeout(() => location.reload(), 1500);
-                
             } catch(e) {
                 console.error("Purge Error:", e);
                 Enterprise.notify("Fatal Error during profile termination.", "danger");
             }
-        } else {
-            Enterprise.notify("Confirmation Mismatch: Profile deletion aborted.", "warning");
         }
-    }
+    });
 };
 
 function startSettingsWatchdog() {
@@ -511,21 +577,35 @@ window.previewSignature = function(e) {
 };
 
 window.removeLetterhead = function() {
-    if(!confirm("Remove Letterhead?")) return;
-    tempLetterhead = null;
-    db.profile.letterheadImg = null;
-    document.getElementById('prof-letterhead-preview').style.backgroundImage = 'none';
-    if (typeof window.saveData === 'function') window.saveData(true);
-    _settingsSyncHash = Date.now().toString();
+    showSafeConfirm({
+        title: 'Remove Letterhead', icon: '🖼️',
+        message: 'Remove the company letterhead image? You can re-upload a new one anytime.',
+        confirmLabel: 'Remove', confirmColor: 'var(--warning)',
+        onConfirm: function() {
+            tempLetterhead = null;
+            db.profile.letterheadImg = null;
+            const el = document.getElementById('prof-letterhead-preview');
+            if (el) el.style.backgroundImage = 'none';
+            if (typeof window.saveData === 'function') window.saveData(true);
+            _settingsSyncHash = `${db.profile?.name||''}-${db.bankProfiles?.length||0}-${db.users?.length||0}-${(db.uiConfig?.docTypes||[]).length}`;
+        }
+    });
 };
 
 window.removeSignature = function() {
-    if(!confirm("Remove Signature?")) return;
-    tempSignature = null;
-    db.profile.signatureImg = null;
-    document.getElementById('prof-signature-preview').style.backgroundImage = 'none';
-    if (typeof window.saveData === 'function') window.saveData(true);
-    _settingsSyncHash = Date.now().toString();
+    showSafeConfirm({
+        title: 'Remove Signature', icon: '✍️',
+        message: 'Remove the authorized signatory image? You can re-upload a new one anytime.',
+        confirmLabel: 'Remove', confirmColor: 'var(--warning)',
+        onConfirm: function() {
+            tempSignature = null;
+            db.profile.signatureImg = null;
+            const el = document.getElementById('prof-signature-preview');
+            if (el) el.style.backgroundImage = 'none';
+            if (typeof window.saveData === 'function') window.saveData(true);
+            _settingsSyncHash = `${db.profile?.name||''}-${db.bankProfiles?.length||0}-${db.users?.length||0}-${(db.uiConfig?.docTypes||[]).length}`;
+        }
+    });
 };
 
 window.saveBrandingAssets = function() {
@@ -671,16 +751,24 @@ function renderBanks() {
 }
 
 window.deleteBank = function(id) {
-    if (typeof Enterprise !== 'undefined' && !Enterprise.security.isAdmin(true)) return; 
-    if(!confirm("Permanently delete this Bank Profile?")) return;
-    db.bankProfiles = db.bankProfiles.filter(b => b.id !== id);
-    
-    db.bankProfiles = [...db.bankProfiles];
-    if (typeof window.saveData === 'function') window.saveData(true);
-    else if(typeof saveData === 'function') saveData(true);
-    
-    _settingsSyncHash = Date.now().toString();
-    renderBanks();
+    if (typeof Enterprise !== 'undefined' && !Enterprise.security.isAdmin(true)) return;
+    const bank = db.bankProfiles.find(b => b.id === id);
+    showSafeConfirm({
+        title: 'Delete Bank Profile',
+        icon: '🏦',
+        message: `Remove <b>${escapeHTML(bank?.bankName || 'this bank')}</b> from your company profile?<br><br><span style="color:var(--text-muted); font-size:0.85rem;">It will no longer appear on invoices. Business data is unaffected.</span>`,
+        confirmLabel: 'Delete Bank',
+        confirmColor: 'var(--danger)',
+        onConfirm: function() {
+            db.bankProfiles = db.bankProfiles.filter(b => b.id !== id);
+            db.bankProfiles = [...db.bankProfiles];
+            if (typeof window.saveData === 'function') window.saveData(true);
+            else if (typeof saveData === 'function') saveData(true);
+            _settingsSyncHash = `${db.profile?.name||''}-${db.bankProfiles.length}-${db.users?.length||0}-${(db.uiConfig?.docTypes||[]).length}`;
+            renderBanks();
+            if (typeof Enterprise !== 'undefined') Enterprise.notify("Bank profile deleted.", "info");
+        }
+    });
 };
 
 // ==========================================
@@ -807,19 +895,39 @@ function renderUsers() {
 }
 
 window.deleteUser = function(id) {
-    if (typeof Enterprise !== 'undefined' && !Enterprise.security.isAdmin(true)) return; 
-    if(!confirm("Permanently delete this user account?")) return;
-    
-    const u = db.users.find(x => x.id === id);
-    db.users = db.users.filter(x => x.id !== id);
-    
-    db.users = [...db.users];
-    if (typeof window.saveData === 'function') window.saveData(true);
-    else if(typeof saveData === 'function') saveData(true);
-    
-    _settingsSyncHash = Date.now().toString();
-    renderUsers();
-    if(typeof Enterprise !== 'undefined' && u) Enterprise.logAction(`Deleted user account: ${u.username}`);
+    if (typeof Enterprise !== 'undefined' && !Enterprise.security.isAdmin(true)) return;
+
+    // Guard: prevent deleting the currently logged-in account
+    const currentUser = sessionStorage.getItem('jft_user') || '';
+    const target = db.users.find(x => x.id === id);
+    if (target && target.username.toLowerCase() === currentUser.toLowerCase()) {
+        if (typeof Enterprise !== 'undefined') Enterprise.notify("⚠️ You cannot delete your own account while logged in.", "warning");
+        return;
+    }
+
+    showSafeConfirm({
+        title: 'Delete User Account',
+        icon: '🗑️',
+        message: `Permanently delete <b>${escapeHTML(target?.username || 'this user')}</b>?<br><br>
+                  <span style="color:var(--text-muted); font-size:0.85rem;">Their login credentials and role permissions will be revoked immediately. All business data they created (invoices, expenses, etc.) is preserved.</span>`,
+        confirmLabel: 'Yes, Delete User',
+        confirmColor: 'var(--danger)',
+        typeToConfirm: target?.username || null,
+        onConfirm: function() {
+            db.users = db.users.filter(x => x.id !== id);
+            db.users = [...db.users];
+            if (typeof window.saveData === 'function') window.saveData(true);
+            else if (typeof saveData === 'function') saveData(true);
+
+            // Set hash to data format so watchdog doesn't fire an extra render cycle
+            _settingsSyncHash = `${db.profile?.name || ''}-${db.bankProfiles?.length||0}-${db.users.length}-${(db.uiConfig?.docTypes||[]).length}`;
+            renderUsers();
+            if (typeof Enterprise !== 'undefined' && target) {
+                Enterprise.notify(`✅ User "${target.username}" deleted successfully.`, "success");
+                Enterprise.logAction(`Deleted user account: ${target.username}`);
+            }
+        }
+    });
 };
 
 async function updatePersonalPassword(e) {
@@ -1234,14 +1342,23 @@ function renderDocTypesTable() {
 }
 
 window.deleteDocType = function(idx) {
-    if (typeof Enterprise !== 'undefined' && !Enterprise.security.isAdmin(true)) return; 
-    if(!confirm("Remove this document tab from the system?")) return;
-    db.uiConfig.docTypes.splice(idx, 1);
-    db.uiConfig = {...db.uiConfig};
-    if (typeof window.saveData === 'function') window.saveData(true); 
-    else if(typeof saveData === 'function') saveData(true);
-    renderDocTypesTable();
-    if(typeof renderDocTabsUI === 'function') renderDocTabsUI();
+    if (typeof Enterprise !== 'undefined' && !Enterprise.security.isAdmin(true)) return;
+    const typeName = db.uiConfig.docTypes?.[idx] || 'this document tab';
+    showSafeConfirm({
+        title: 'Remove Document Tab',
+        icon: '📄',
+        message: `Remove <b>"${escapeHTML(typeName)}"</b> from the document type list?<br><br><span style="color:var(--text-muted); font-size:0.85rem;">Existing documents of this type are preserved. Only the tab button is removed.</span>`,
+        confirmLabel: 'Remove Tab',
+        confirmColor: 'var(--warning)',
+        onConfirm: function() {
+            db.uiConfig.docTypes.splice(idx, 1);
+            db.uiConfig = {...db.uiConfig};
+            if (typeof window.saveData === 'function') window.saveData(true);
+            else if (typeof saveData === 'function') saveData(true);
+            renderDocTypesTable();
+            if (typeof renderDocTabsUI === 'function') renderDocTabsUI();
+        }
+    });
 };
 
 window.addUniversalCustomField = function(e) {
@@ -1279,14 +1396,23 @@ function renderUnivCustomFields() {
 }
 
 window.deleteCustomField = function(id) {
-    if (typeof Enterprise !== 'undefined' && !Enterprise.security.isAdmin(true)) return; 
-    if(!confirm("Remove this custom field from the system?")) return;
-    db.customFields = db.customFields.filter(f => f.id !== id);
-    db.customFields = [...db.customFields];
-    if (typeof window.saveData === 'function') window.saveData(true); 
-    else if(typeof saveData === 'function') saveData(true);
-    renderUnivCustomFields();
-    if(typeof refreshActiveUI === 'function') refreshActiveUI();
+    if (typeof Enterprise !== 'undefined' && !Enterprise.security.isAdmin(true)) return;
+    const field = db.customFields.find(f => f.id === id);
+    showSafeConfirm({
+        title: 'Remove Custom Field',
+        icon: '🔧',
+        message: `Remove custom field <b>"${escapeHTML(field?.name || id)}"</b>?<br><br><span style="color:var(--text-muted); font-size:0.85rem;">It will disappear from all forms. Existing data in this field is not deleted from records.</span>`,
+        confirmLabel: 'Remove Field',
+        confirmColor: 'var(--warning)',
+        onConfirm: function() {
+            db.customFields = db.customFields.filter(f => f.id !== id);
+            db.customFields = [...db.customFields];
+            if (typeof window.saveData === 'function') window.saveData(true);
+            else if (typeof saveData === 'function') saveData(true);
+            renderUnivCustomFields();
+            if (typeof refreshActiveUI === 'function') refreshActiveUI();
+        }
+    });
 };
 
 function renderAuditLogs() {
@@ -1308,22 +1434,34 @@ function renderAuditLogs() {
 }
 
 window.clearSystemCache = function() {
-    if (typeof Enterprise !== 'undefined' && !Enterprise.security.isAdmin(true)) return; 
-    if(confirm("This will wipe all locally cached UI memory. Are you sure?")) {
-        localStorage.clear(); sessionStorage.clear(); window.location.reload();
-    }
+    if (typeof Enterprise !== 'undefined' && !Enterprise.security.isAdmin(true)) return;
+    showSafeConfirm({
+        title: 'Wipe Local Cache',
+        icon: '🧹',
+        message: 'This will clear all locally cached UI memory and reload the application.<br><br><span style="color:var(--text-muted); font-size:0.85rem;">Cloud data is safe. Only browser-local state (theme, session) is cleared.</span>',
+        confirmLabel: 'Wipe & Reload',
+        confirmColor: 'var(--warning)',
+        onConfirm: function() { localStorage.clear(); sessionStorage.clear(); window.location.reload(); }
+    });
 };
 
 window.clearAuditLogs = function() {
-    if (typeof Enterprise !== 'undefined' && !Enterprise.security.isAdmin(true)) return; 
-    if(!confirm("⚠️ PERMANENT ACTION: This will purge the entire cloud-synced system audit ledger. Proceed?")) return;
-    
-    db.system_logs = [];
-    if (typeof window.saveData === 'function') window.saveData(true); 
-    else if(typeof saveData === 'function') saveData(true);
-    
-    renderAuditLogs();
-    if(typeof Enterprise !== 'undefined') Enterprise.notify("System Audit Logs Purged", "success");
+    if (typeof Enterprise !== 'undefined' && !Enterprise.security.isAdmin(true)) return;
+    showSafeConfirm({
+        title: 'Purge Audit Ledger',
+        icon: '🔥',
+        message: '<b>PERMANENT ACTION:</b> This will delete the entire cloud-synced system audit log.<br><br><span style="color:var(--danger); font-size:0.85rem; font-weight:bold;">All user activity history will be permanently lost. This cannot be undone.</span>',
+        confirmLabel: 'Yes, Purge All Logs',
+        confirmColor: 'var(--danger)',
+        typeToConfirm: 'PURGE',
+        onConfirm: function() {
+            db.system_logs = [];
+            if (typeof window.saveData === 'function') window.saveData(true);
+            else if (typeof saveData === 'function') saveData(true);
+            renderAuditLogs();
+            if (typeof Enterprise !== 'undefined') Enterprise.notify("System Audit Logs Purged.", "success");
+        }
+    });
 };
 
 window.runSystemDiagnostic = function() {
