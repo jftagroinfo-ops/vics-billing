@@ -6,10 +6,7 @@ if (typeof window.db === 'undefined') { window.db = {}; }
 // Use window.db consistently to avoid scoping crashes
 if (!window.db.lcs) { window.db.lcs = []; }
 
-window.escapeHTML = window.escapeHTML || function(str) {
-    if (!str) return '';
-    return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
-};
+// escapeHTML is defined globally in ui.js — no local copy needed.
 
 // Initializes the Global LC Limit from the Cloud config
 function initLCLimitConfig() {

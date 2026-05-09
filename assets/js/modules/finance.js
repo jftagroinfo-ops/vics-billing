@@ -100,11 +100,74 @@ window.switchFinanceTab = function(tabId) {
     if (tabId === 'cashflow') {
         renderAIProjectionDashboard();
     }
+    if (tabId === 'lc') {
+        // Render a quick LC summary inside the Finance embed panel
+        _renderFinanceLCSummary();
+    }
+    if (tabId === 'incentives') {
+        // Render a quick Incentives summary inside the Finance embed panel
+        _renderFinanceIncentivesSummary();
+    }
 };
+
+// ============================================================
+// FINANCE EMBED PANELS — LC Manager & Govt Incentives Summaries
+// ============================================================
+function _renderFinanceLCSummary() {
+    const db = window.db; if (!db) return;
+    const summaryEl = document.getElementById('fin-lc-summary');
+    if (!summaryEl) return;
+    const lcs = db.lcs || [];
+    const active = lcs.filter(l => !['Settled','Expired'].includes(l.status)).length;
+    const totalUSD = lcs.filter(l => !['Settled','Expired'].includes(l.status))
+        .reduce((s,l) => s + parseFloat(l.amount || 0), 0);
+    const expiringSoon = lcs.filter(l => {
+        if (!l.expiryDate || ['Settled','Expired'].includes(l.status)) return false;
+        const days = (new Date(l.expiryDate) - new Date()) / 86400000;
+        return days >= 0 && days <= 30;
+    }).length;
+    summaryEl.innerHTML = `
+        <div style="background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:15px 25px; text-align:center;">
+            <div style="font-size:1.8rem; font-weight:900; color:var(--primary);">${active}</div>
+            <div style="font-size:0.75rem; color:var(--text-muted);">Active LCs</div>
+        </div>
+        <div style="background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:15px 25px; text-align:center;">
+            <div style="font-size:1.8rem; font-weight:900; color:var(--text);">$${(totalUSD/1000).toFixed(1)}K</div>
+            <div style="font-size:0.75rem; color:var(--text-muted);">Total Exposure</div>
+        </div>
+        <div style="background:${expiringSoon>0?'rgba(239,68,68,0.08)':'var(--bg)'}; border:1px solid ${expiringSoon>0?'var(--danger)':'var(--border)'}; border-radius:10px; padding:15px 25px; text-align:center;">
+            <div style="font-size:1.8rem; font-weight:900; color:${expiringSoon>0?'var(--danger)':'var(--text)'};">${expiringSoon}</div>
+            <div style="font-size:0.75rem; color:var(--text-muted);">Expiring in 30d</div>
+        </div>`;
+}
+
+function _renderFinanceIncentivesSummary() {
+    const db = window.db; if (!db) return;
+    const summaryEl = document.getElementById('fin-incentives-summary');
+    if (!summaryEl) return;
+    const incs = db.incentives || [];
+    const total = incs.reduce((s,i) => s + (i.claimAmt || 0), 0);
+    const pending = incs.filter(i => i.status !== 'Realized').reduce((s,i) => s + (i.claimAmt || 0), 0);
+    const realized = incs.filter(i => i.status === 'Realized').reduce((s,i) => s + (i.claimAmt || 0), 0);
+    const fmt = (v) => `&#8377;${v.toLocaleString('en-IN', {maximumFractionDigits:0})}`;
+    summaryEl.innerHTML = `
+        <div style="background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:15px 25px; text-align:center;">
+            <div style="font-size:1.5rem; font-weight:900; color:var(--primary);">${fmt(total)}</div>
+            <div style="font-size:0.75rem; color:var(--text-muted);">Total Claims</div>
+        </div>
+        <div style="background:rgba(245,158,11,0.07); border:1px solid var(--warning); border-radius:10px; padding:15px 25px; text-align:center;">
+            <div style="font-size:1.5rem; font-weight:900; color:var(--warning);">${fmt(pending)}</div>
+            <div style="font-size:0.75rem; color:var(--text-muted);">Pending / Applied</div>
+        </div>
+        <div style="background:rgba(16,185,129,0.07); border:1px solid var(--success); border-radius:10px; padding:15px 25px; text-align:center;">
+            <div style="font-size:1.5rem; font-weight:900; color:var(--success);">${fmt(realized)}</div>
+            <div style="font-size:0.75rem; color:var(--text-muted);">Realized (Credited)</div>
+        </div>`;
+}
 
 window.runFXStressTest = function(delta = 0) {
     const db = window.db; if(!db) return;
-    const liveRate = (typeof getUsdInrRate === 'function') ? getUsdInrRate() : (db.meta?.usdInrRate || 83.50);
+    const liveRate = (typeof getUsdInrRate === 'function') ? getUsdInrRate() : (db.meta?.usdInrRate || 84.50);
     const deltaVal = parseFloat(delta || 0);
     const stressedRate = liveRate + deltaVal;
 

@@ -56,6 +56,18 @@ function createWindow() {
         if (!isQuitting) {
             e.preventDefault();
             mainWindow.webContents.send('initiate-exit-backup');
+
+            // FORCE-CLOSE SAFETY NET:
+            // If frontend doesn't respond within 4 seconds (login screen,
+            // JS error, or db.js not loaded yet) — force quit anyway.
+            // This guarantees the X button ALWAYS closes the app.
+            setTimeout(() => {
+                if (!isQuitting) {
+                    console.log('[SYSTEM] Force-close timeout. Quitting now.');
+                    isQuitting = true;
+                    app.quit();
+                }
+            }, 4000);
         }
     });
 }

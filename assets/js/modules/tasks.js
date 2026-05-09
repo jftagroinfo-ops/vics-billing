@@ -13,10 +13,7 @@ function initTasksSystem() {
 }
 initTasksSystem();
 
-window.escapeHTML = window.escapeHTML || function(str) {
-    if (!str) return '';
-    return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
-};
+// escapeHTML is defined globally in ui.js — no local copy needed.
 
 // UI State
 let activeTaskDocId = null;
@@ -37,10 +34,12 @@ function setVisibility(elId, show, displayType = 'block') {
     }
 }
 
-// Watchdog Engine for instant Cloud updates
+// Watchdog Engine for Cloud updates
 function startTasksWatchdog() {
     setInterval(() => {
         if (typeof db === 'undefined') return;
+        // PERF: Skip re-render when Task Board tab is not visible
+        if (document.getElementById('tasks')?.style.display === 'none') return;
         if (!db.tasks) db.tasks = [];
         if (!db.docs) db.docs = [];
         
@@ -48,7 +47,7 @@ function startTasksWatchdog() {
             _lastTasksCount = db.tasks.length;
             renderTasksWorkspace();
         }
-    }, 1500);
+    }, 5000); // Slowed from 1500ms → 5000ms
 }
 
 function initTaskFilters() {

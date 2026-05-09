@@ -10,10 +10,7 @@ function initCostingSystem() {
 }
 initCostingSystem();
 
-window.escapeHTML = window.escapeHTML || function(str) {
-    if (!str) return '';
-    return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
-};
+// escapeHTML is defined globally in ui.js — no local copy needed.
 
 // UI State & Tracking
 window.currentCostFilteredData = [];
@@ -45,19 +42,32 @@ window.switchInvTab = window.switchInvTab || function() {};
 
 window.switchCostTab = function(tabId) {
     document.querySelectorAll('#costing .sub-tab-btn').forEach(btn => btn.classList.remove('active'));
-    document.getElementById('cost-calc-tab').style.display = 'none';
-    document.getElementById('cost-live-tab').style.display = 'none';
+    ['cost-calc-tab', 'cost-live-tab', 'cost-quote-tab'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+    });
     
-    document.getElementById(`btn-cost-${tabId}`).classList.add('active');
+    const activeBtn = document.getElementById(`btn-cost-${tabId}`);
+    if (activeBtn) activeBtn.classList.add('active');
     
     if (tabId === 'calc') {
         document.getElementById('cost-calc-tab').style.display = 'block';
         if (typeof calculateCosting === 'function') calculateCosting();
         if (typeof calcReversePrice === 'function') calcReversePrice();
-    } else {
+    } else if (tabId === 'live') {
         document.getElementById('cost-live-tab').style.display = 'block';
         populateLiveHistoryDropdown();
+    } else if (tabId === 'quote') {
+        document.getElementById('cost-quote-tab').style.display = 'block';
+        // Auto-populate rate from current db meta rate
+        const rateInput = document.getElementById('qq-rate');
+        if (rateInput && !rateInput.value) {
+            const rate = (typeof getUsdInrRate === 'function') ? getUsdInrRate() : 84.50;
+            rateInput.value = rate.toFixed(2);
+        }
+        if (typeof qqCalculate === 'function') qqCalculate();
     }
+};
 };
 
 function initCostFilters() {
@@ -765,3 +775,63 @@ function executeImageCapture() {
 // Global initialization hook for navigation controller
 window.renderCostingTable = renderCostingTable;
 
+
+// ============================================================
+// QUICK QUOTE CALCULATOR (moved from standalone Pricelist module)
+// Converts base INR cost → export price in any currency with live rate
+// ============================================================
+
+window.qqCalculate = function() {
+    const baseInr = parseFloat(document.getElementById('qq-base-inr')?.value) || 0;
+    const rate    = parseFloat(document.getElementById('qq-rate')?.value) || 1;
+    const curr    = (document.getElementById('qq-currency')?.value || 'USD').replace(/[^A-Za-z]/g,'').substring(0,3).toUpperCase();
+    const margin  = parseFloat(document.getElementById('qq-margin')?.value) || 0;
+    const product = document.getElementById('qq-product')?.value || 'Product';
+    const unit    = document.getElementById('qq-unit')?.value || 'MT';
+
+    const baseWithMargin = baseInr * (1 + margin / 100);
+    const exportPrice = curr === 'INR' ? baseWithMargin : (rate > 0 ? baseWithMargin / rate : 0);
+
+    const setV = (id, v) => { const el = document.getElementById(id); if (el) el.innerText = v; };
+    setV('qq-out-product', product);
+    setV('qq-out-price', exportPrice.toFixed(2));
+    setV('qq-out-curr', curr);
+    setV('qq-out-unit', unit);
+    setV('qq-out-base', '₹' + baseInr.toFixed(2));
+    setV('qq-out-margin', margin + '%');
+    setV('qq-out-rate', curr !== 'INR' ? '₹' + rate.toFixed(2) + '/' + curr : '—');
+    setV('qq-out-date', new Date().toLocaleDateString('en-IN', {day:'2-digit',month:'short',year:'numeric'}));
+
+    const card = document.getElementById('qq-result-card');
+    if (card) card.style.display = 'block';
+};
+
+window.qqFetchLiveRate = async function() {
+    const currRaw = document.getElementById('qq-currency')?.value || 'USD';
+    const curr = currRaw.replace(/[^A-Z]/g,'').substring(0,3);
+    const btn = document.getElementById('qq-fetch-btn');
+    const rateInput = document.getElementById('qq-rate');
+    if (curr === 'INR') { if (rateInput) rateInput.value = 1; qqCalculate(); return; }
+    if (btn) { btn.innerText = '⏳ Fetching…'; btn.disabled = true; }
+    try {
+        const res = await fetch('https://open.er-api.com/v6/latest/' + curr);
+        const data = await res.json();
+        if (data?.rates?.INR) {
+            if (rateInput) rateInput.value = data.rates.INR.toFixed(2);
+            if (typeof Enterprise !== 'undefined') Enterprise.notify('Live rate: 1 ' + curr + ' = ₹' + data.rates.INR.toFixed(2), 'success');
+            qqCalculate();
+        }
+    } catch(e) {
+        if (typeof Enterprise !== 'undefined') Enterprise.notify('Live rate fetch failed. Enter manually.', 'warning');
+    } finally {
+        if (btn) { btn.innerText = '🔄 Fetch Live Rate'; btn.disabled = false; }
+    }
+};
+
+window.qqPrint = function() {
+    const area = document.getElementById('qq-print-area');
+    if (!area) return;
+    const w = window.open('','_blank','width=600,height=500');
+    w.document.write('<html><head><title>Export Price Quote</title><style>body{font-family:sans-serif;padding:30px;}table{width:100%;border-collapse:collapse;}td{padding:8px 0;border-bottom:1px dashed #ddd;}.price{font-size:2rem;font-weight:900;color:#1d4ed8;}</style></head><body>' + area.innerHTML + '</body></html>');
+    w.document.close(); w.print();
+};

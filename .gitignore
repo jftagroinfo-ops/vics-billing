@@ -1,0 +1,8 @@
+dist/assets/index-biOVfmKJ.css
+/dist
+/node_modules/.bin
+/node_modules
+/SMA-ERP-PRODUCTION
+*.json
+package-lock.json
+package-lock.json

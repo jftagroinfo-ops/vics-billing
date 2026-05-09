@@ -11,10 +11,7 @@ function initPrintSystem() {
 }
 initPrintSystem();
 
-window.escapeHTML = window.escapeHTML || function(str) {
-    if (!str) return '';
-    return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
-};
+// escapeHTML is defined globally in ui.js — no local copy needed.
 
 window.printCurrentPage = 1;
 let _lastHistoryFingerprint = "";
@@ -22,6 +19,8 @@ let _lastHistoryFingerprint = "";
 function startPrintWatchdog() {
     setInterval(() => {
         if (typeof db === 'undefined') return;
+        // PERF: Skip re-render when this tab is not visible
+        if (document.getElementById('print')?.style.display === 'none') return;
         if (!db.docs) db.docs = [];
         
         const currentFingerprint = db.docs.map(d => d.id).join('|');
@@ -29,7 +28,7 @@ function startPrintWatchdog() {
             _lastHistoryFingerprint = currentFingerprint;
             renderPrintQueue();
         }
-    }, 1500);
+    }, 5000); // Slowed from 1500ms → 5000ms.
 }
 
 function initPrintFilters() {

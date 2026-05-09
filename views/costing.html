@@ -76,6 +76,7 @@
     <div style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 10px; overflow-x: auto;">
         <button class="sub-tab-btn active" id="btn-cost-calc" onclick="switchCostTab('calc')">🧮 Calculator & History</button>
         <button class="sub-tab-btn" id="btn-cost-live" onclick="switchCostTab('live')">📢 Live Price List Generator</button>
+        <button class="sub-tab-btn" id="btn-cost-quote" onclick="switchCostTab('quote')">💱 Quick Quote (INR → Export)</button>
     </div>
 
     <div id="cost-calc-tab">
@@ -463,6 +464,68 @@
                 <tr><td>Less: Local Ops / Unit</td><td id="rrec-loc" style="color:var(--danger);">-₹0.00</td></tr>
                 <tr><td class="receipt-total" style="color:#b45309;">MAX BUYING PRICE</td><td id="rrec-max" class="receipt-total" style="color:#b45309;">₹0.00</td></tr>
             </table>
+        </div>
+    </div>
+
+
+    <!-- ============================================================ -->
+    <!-- QUICK QUOTE TAB: INR Base Cost to Export Currency Price Card  -->
+    <!-- ============================================================ -->
+    <div id="cost-quote-tab" style="display:none;">
+        <div class="grid-2" style="align-items:start; gap:20px;">
+            <div class="card" style="border-top:4px solid var(--primary); margin:0;">
+                <h3 style="margin-top:0; border-bottom:1px solid var(--border); padding-bottom:10px;">&#x1F4B1; Quick Export Quote</h3>
+                <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:20px;">Enter your base INR cost, apply a margin, and convert to the buyer&#x27;s currency instantly.</p>
+                <div class="grid-2" style="gap:12px; margin-bottom:15px;">
+                    <div><label>Product / Commodity</label><input type="text" id="qq-product" placeholder="e.g. Basmati Rice" oninput="qqCalculate()"></div>
+                    <div><label>Unit</label><select id="qq-unit" onchange="qqCalculate()"><option value="MT">Per MT</option><option value="KG">Per KG</option><option value="Quintal">Per Quintal</option><option value="Unit">Per Unit</option></select></div>
+                    <div><label>Base Cost (&#x20B9; INR)</label><input type="number" id="qq-base-inr" step="0.01" placeholder="e.g. 35000" oninput="qqCalculate()" style="border-color:var(--primary);"></div>
+                    <div><label>Margin / Markup (%)</label><input type="number" id="qq-margin" step="0.1" value="0" placeholder="e.g. 12" oninput="qqCalculate()"></div>
+                </div>
+                <div style="background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:15px; margin-bottom:15px;">
+                    <h4 style="margin:0 0 12px 0; color:var(--primary); font-size:0.9rem;">Currency &amp; Live Rate</h4>
+                    <div class="grid-2" style="gap:12px;">
+                        <div><label>Export Currency</label><select id="qq-currency" onchange="qqFetchLiveRate()"><option value="USD">USD</option><option value="EUR">EUR</option><option value="GBP">GBP</option><option value="AED">AED</option><option value="SAR">SAR</option><option value="INR">INR</option></select></div>
+                        <div><label>Exchange Rate (&#x20B9; per 1 unit)</label><input type="number" id="qq-rate" step="0.01" placeholder="e.g. 84.50" oninput="qqCalculate()"></div>
+                    </div>
+                    <button type="button" id="qq-fetch-btn" onclick="qqFetchLiveRate()" class="secondary" style="margin-top:10px; width:100%; border:1px solid var(--primary); color:var(--primary);">&#x1F504; Fetch Live Rate</button>
+                </div>
+                <button type="button" onclick="qqCalculate()" class="primary" style="width:100%; padding:12px; font-size:1rem; border-radius:10px;">&#x26A1; Generate Quote</button>
+            </div>
+            <div>
+                <div id="qq-result-card" style="display:none;">
+                    <div id="qq-print-area" class="card" style="border-top:4px solid var(--success); margin:0; padding:25px;">
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:20px;">
+                            <div><div style="font-size:0.7rem; font-weight:800; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted);">Export Price Quote</div><div id="qq-out-product" style="font-size:1.3rem; font-weight:900; color:var(--text); margin-top:4px;">&#x2014;</div></div>
+                            <div style="text-align:right;"><div style="font-size:0.7rem; color:var(--text-muted);">Date</div><div id="qq-out-date" style="font-size:0.85rem; font-weight:bold; color:var(--text);">&#x2014;</div></div>
+                        </div>
+                        <div style="text-align:center; background:linear-gradient(135deg, rgba(16,185,129,0.08), rgba(59,130,246,0.05)); border-radius:12px; padding:20px 15px; margin-bottom:20px; border:1px solid rgba(16,185,129,0.2);">
+                            <div style="font-size:0.75rem; font-weight:800; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;">Quoted Export Price</div>
+                            <div style="display:flex; align-items:baseline; justify-content:center; gap:8px;">
+                                <span id="qq-out-curr" style="font-size:1.2rem; font-weight:700; color:var(--success);">USD</span>
+                                <span id="qq-out-price" style="font-size:3rem; font-weight:900; color:var(--success); line-height:1;">0.00</span>
+                                <span style="font-size:1rem; color:var(--text-muted);">/</span>
+                                <span id="qq-out-unit" style="font-size:1rem; color:var(--text-muted);">MT</span>
+                            </div>
+                        </div>
+                        <table style="width:100%; font-size:0.85rem; border-collapse:collapse;">
+                            <tr style="border-bottom:1px dashed var(--border);"><td style="padding:8px 0; color:var(--text-muted);">Base INR Cost</td><td id="qq-out-base" style="text-align:right; font-weight:bold;">&#x2014;</td></tr>
+                            <tr style="border-bottom:1px dashed var(--border);"><td style="padding:8px 0; color:var(--text-muted);">Margin Applied</td><td id="qq-out-margin" style="text-align:right; font-weight:bold; color:var(--primary);">&#x2014;</td></tr>
+                            <tr><td style="padding:8px 0; color:var(--text-muted);">Exchange Rate Used</td><td id="qq-out-rate" style="text-align:right; font-weight:bold; color:var(--text-muted);">&#x2014;</td></tr>
+                        </table>
+                        <div style="margin-top:15px; font-size:0.7rem; color:var(--text-muted); font-style:italic; border-top:1px dashed var(--border); padding-top:10px;">Indicative quote based on current rates. Final price subject to confirmation.</div>
+                    </div>
+                    <div style="display:flex; gap:10px; margin-top:15px;">
+                        <button onclick="qqPrint()" class="secondary" style="flex:1;">&#x1F5A8; Print Quote</button>
+                        <button onclick="qqCalculate()" class="primary" style="flex:1;">&#x1F504; Recalculate</button>
+                    </div>
+                </div>
+                <div id="qq-empty" style="padding:60px 20px; text-align:center; color:var(--text-muted); background:var(--surface); border:1px dashed var(--border); border-radius:12px;">
+                    <div style="font-size:3rem; margin-bottom:15px;">&#x1F4B1;</div>
+                    <h4 style="margin:0 0 8px 0; color:var(--text);">Quick Quote Generator</h4>
+                    <p style="margin:0;">Enter your base cost and margin on the left to generate a professional export price card.</p>
+                </div>
+            </div>
         </div>
     </div>
 

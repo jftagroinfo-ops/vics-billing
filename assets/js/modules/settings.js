@@ -8,10 +8,7 @@ if (!db.uiConfig) db.uiConfig = {};
 if (!db.system_logs) db.system_logs = [];
 if (!db.meta) db.meta = {};
 
-window.escapeHTML = window.escapeHTML || function(str) {
-    if (!str) return '';
-    return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
-};
+// escapeHTML is defined globally in ui.js — no local copy needed.
 
 // ==========================================
 // BOOTLOADER & WATCHDOG SYNC ENGINE
@@ -22,6 +19,16 @@ function initSettingsSystem() {
     if (typeof db === 'undefined') {
         setTimeout(initSettingsSystem, 50);
         return;
+    }
+    
+    // Sync version badge from the single source of truth in enterprise.js
+    const vBadge = document.getElementById('current-version-badge');
+    if (vBadge && typeof Enterprise !== 'undefined' && Enterprise.SoftwareVersion) {
+        vBadge.innerText = `VERSION v${Enterprise.SoftwareVersion}`;
+    }
+    const vSidebar = document.getElementById('software-version-display');
+    if (vSidebar && typeof Enterprise !== 'undefined' && Enterprise.SoftwareVersion) {
+        vSidebar.innerHTML = `<b>System Version:</b> v${Enterprise.SoftwareVersion} Enterprise`;
     }
     
     // Safety: Hide Delete button for JFT_MAIN

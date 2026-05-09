@@ -66,9 +66,15 @@ window.showToast = function(message, type = 'info', duration = 4000) {
 
 window.getUsdInrRate = function() {
     if (typeof window.db !== 'undefined' && window.db.meta && window.db.meta.usdInrRate) {
-        return parseFloat(window.db.meta.usdInrRate) || 83.50;
+        const rate = parseFloat(window.db.meta.usdInrRate);
+        if (rate && rate > 0) {
+            window._usingFallbackRate = false;
+            return rate;
+        }
     }
-    return 83.50;
+    // FALLBACK: Live fetch unavailable. Flag UI so dashboard shows "Estimated Rate" badge.
+    window._usingFallbackRate = true;
+    return 84.50; // Updated from stale 83.50 — still an estimate; always prefer live fetch.
 };
 
 /**
@@ -179,22 +185,22 @@ window.startEnterpriseWatchdog = function() {
 setTimeout(window.startEnterpriseWatchdog, 2000);
 
 const NAV_TREE = [
-    { id: 'dashboard', label: 'Dashboard', icon: '📊', module: 'core', initFn: 'renderDashboard' },
-    { id: 'documents', label: 'Documents & Inv', icon: '📄', module: 'core', initFn: 'renderDocTabsUI' }, 
-    { id: 'finance', label: 'Finance & PnL', icon: '💰', module: 'finance', initFn: 'renderPnL' },
-    { id: 'logistics', label: 'Logistics Tracker', icon: '🚚', module: 'logistics', initFn: 'renderLogistics' },
-    { id: 'inventory', label: 'Inventory (Stock)', icon: '📦', module: 'inventory', initFn: 'renderInventoryLedger' },
-    { id: 'costing', label: 'Costing Calc', icon: '🧮', module: 'costing', initFn: 'renderCostingTable' },
-    { id: 'lc-manager', label: 'LC Manager', icon: '🏦', module: 'finance', initFn: 'renderLCList' },
-    { id: 'incentives', label: 'Govt Incentives', icon: '💸', module: 'finance', initFn: 'renderIncentives' },
-    { id: 'import-mgmt', label: 'Import Management', icon: '🛳️', module: 'core', initFn: 'renderImportTable', file: 'import.html' },
-    { id: 'reports', label: 'Report Builder', icon: '📈', module: 'core', initFn: 'renderReportBuilder' },
-    { id: 'tasks', label: 'Task Board', icon: '✅', module: 'core', initFn: 'renderTasksWorkspace' },
-    { id: 'crm', label: 'Network Directory', icon: '🤝', module: 'core', initFn: 'renderNetworkCRM' },
-    { id: 'print', label: 'Templates & History', icon: '🖨️', module: 'core', initFn: 'initPrintAndDrafts' },
-    { id: 'exporter-data', label: 'Document Vault', icon: '🛡️', module: 'core', initFn: 'renderExporterData' },
-    { id: 'attendance', label: 'Attendance', icon: '📅', module: 'hr', initFn: 'renderAttendanceWorkspace' },
-    { id: 'settings', label: 'Settings', icon: '⚙️', module: 'core', initFn: 'initSettingsSystem' }
+    { id: 'dashboard',    label: 'Dashboard',          icon: '📊', module: 'core',     initFn: 'renderDashboard' },
+    { id: 'documents',    label: 'Trade Documents',    icon: '📄', module: 'core',     initFn: 'renderDocTabsUI' },
+    { id: 'finance',      label: 'Finance & PnL',      icon: '💰', module: 'finance',  initFn: 'renderPnL' },
+    { id: 'logistics',    label: 'Logistics Tracker',  icon: '🚚', module: 'logistics',initFn: 'renderLogistics' },
+    { id: 'inventory',    label: 'Inventory (Stock)',   icon: '📦', module: 'inventory',initFn: 'renderInventoryLedger' },
+    { id: 'costing',      label: 'Costing Calc',       icon: '🧮', module: 'costing',  initFn: 'renderCostingTable' },
+    { id: 'import-mgmt',  label: 'Import Management',  icon: '🛳️', module: 'core',     initFn: 'renderImportTable', file: 'import.html' },
+    { id: 'reports',      label: 'Report Builder',     icon: '📈', module: 'core',     initFn: 'renderReportBuilder' },
+    { id: 'tasks',        label: 'Task Board',         icon: '✅', module: 'core',     initFn: 'renderTasksWorkspace' },
+    { id: 'crm',          label: 'CRM',                icon: '🤝', module: 'core',     initFn: 'renderNetworkCRM' },
+    { id: 'print',        label: 'Print History',      icon: '🖨️', module: 'core',     initFn: 'initPrintAndDrafts' },
+    { id: 'exporter-data',label: 'Document Vault',     icon: '🛡️', module: 'core',     initFn: 'renderExporterData' },
+    { id: 'attendance',   label: 'Attendance',         icon: '📅', module: 'hr',       initFn: 'renderAttendanceWorkspace' },
+    { id: 'settings',     label: 'Settings',           icon: '⚙️', module: 'core',     initFn: 'initSettingsSystem' }
+    // NOTE: LC Manager and Govt Incentives are now Finance sub-tabs (see finance.html btn-fin-lc, btn-fin-incentives)
+    // They redirect via showTab() guard below. No longer standalone nav entries.
 ];
 
 window.initPrintAndDrafts = function() {
@@ -206,6 +212,9 @@ const APP_COMMANDS = [
     { keywords: ['new invoice', 'create invoice', 'commercial invoice'], title: '📄 Create Commercial Invoice', action: () => { showTab('documents'); setTimeout(() => createNewDoc('Commercial Invoice'), 200); } },
     { keywords: ['new proforma', 'create proforma'], title: '📄 Create Proforma Invoice', action: () => { showTab('documents'); setTimeout(() => createNewDoc('Proforma Invoice'), 200); } },
     { keywords: ['new packing list', 'create packing list'], title: '📦 Create Packing List', action: () => { showTab('documents'); setTimeout(() => createNewDoc('Packing List'), 200); } },
+    { keywords: ['lc', 'letter of credit', 'lc manager', 'bank lc', 'lc expiry'], title: '🏦 LC Manager', action: () => { showTab('finance'); setTimeout(() => switchFinanceTab('lc'), 250); } },
+    { keywords: ['incentives', 'rodtep', 'meis', 'drawback', 'govt incentive', 'export incentive'], title: '💸 Govt Export Incentives', action: () => { showTab('finance'); setTimeout(() => switchFinanceTab('incentives'), 250); } },
+    { keywords: ['quick quote', 'price quote', 'export price', 'pricelist', 'price list', 'quote buyer', 'usd price'], title: '💱 Quick Quote (INR → Export)', action: () => { showTab('costing'); setTimeout(() => { if(typeof switchCostTab==='function') switchCostTab('quote'); }, 250); } },
     { keywords: ['add expense', 'new expense', 'log expense', 'pnl'], title: '💰 Log New Expense', action: () => { showTab('finance'); setTimeout(() => switchFinanceTab('exp'), 100); } },
     { keywords: ['add forex', 'log forex', 'realization', 'bank'], title: '💱 Log Forex Realization', action: () => { showTab('finance'); setTimeout(() => switchFinanceTab('forex'), 100); } },
     { keywords: ['brc', 'compliance', 'shipping bill', 'egm', 'icegate'], title: '🛡️ Open Compliance & e-BRC Registry', action: () => { showTab('finance'); setTimeout(() => switchFinanceTab('compliance'), 100); } },
@@ -494,6 +503,24 @@ function showTab(tabId) {
     if (tabId === 'system-updates') {
         showTab('settings');
         setTimeout(() => { if (typeof switchSettingsTab === 'function') switchSettingsTab('updates'); }, 200);
+        return;
+    }
+
+    // Redirect: LC Manager and Govt Incentives moved into Finance sub-tabs
+    if (tabId === 'lc-manager') {
+        showTab('finance');
+        setTimeout(() => { if (typeof switchFinanceTab === 'function') switchFinanceTab('lc'); }, 250);
+        return;
+    }
+    if (tabId === 'incentives') {
+        showTab('finance');
+        setTimeout(() => { if (typeof switchFinanceTab === 'function') switchFinanceTab('incentives'); }, 250);
+        return;
+    }
+    // Redirect: Pricelist consolidated into Costing → Quick Quote tab
+    if (tabId === 'pricelist') {
+        showTab('costing');
+        setTimeout(() => { if (typeof switchCostTab === 'function') switchCostTab('quote'); }, 250);
         return;
     }
 
@@ -973,7 +1000,7 @@ function renderSystemNotifications() {
         window.db.lcs.forEach(lc => {
             const expDate = new Date(lc.expDate);
             if (expDate <= warningThreshold && expDate >= today && lc.status !== 'Settled' && lc.status !== 'Expired') {
-                rawAlerts.push({ id: `lc-${lc.id}`, icon: '🏦', title: 'LC Expiring Soon', text: `LC No: ${escapeHTML(lc.no)} requires attention.`, color: 'var(--warning)', action: () => showTab('lc-manager') });
+                rawAlerts.push({ id: `lc-${lc.id}`, icon: '🏦', title: 'LC Expiring Soon', text: `LC No: ${escapeHTML(lc.no)} requires attention.`, color: 'var(--warning)', action: () => { showTab('finance'); setTimeout(() => { if(typeof switchFinanceTab==='function') switchFinanceTab('lc'); }, 250); } });
             }
         });
     }

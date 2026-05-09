@@ -76,6 +76,8 @@
         <button class="sub-tab-btn" id="btn-fin-hedge" onclick="switchFinanceTab('hedge')">🛡️ Forex Hedging</button>
         <button class="sub-tab-btn" id="btn-fin-aging" onclick="switchFinanceTab('aging')">⏳ Aging & Receivables</button>
         <button class="sub-tab-btn" id="btn-fin-cashflow" onclick="switchFinanceTab('cashflow')" style="border: 2px solid var(--primary); font-weight: bold; color: var(--primary);">🤖 AI 90-Day Forecast</button>
+        <button class="sub-tab-btn" id="btn-fin-lc" onclick="switchFinanceTab('lc')">🏦 LC Manager</button>
+        <button class="sub-tab-btn" id="btn-fin-incentives" onclick="switchFinanceTab('incentives')">💸 Govt Incentives</button>
         <button class="sub-tab-btn" id="btn-fin-pnl" onclick="switchFinanceTab('pnl')">📊 Global PnL</button>
         <button class="sub-tab-btn" id="btn-fin-dossier" onclick="switchFinanceTab('dossier')">📂 360° Shipment Dossier</button>
         <button class="sub-tab-btn" id="btn-fin-stress" onclick="isFinUserAdmin() ? switchFinanceTab('stress') : Enterprise.notify('Restricted to Admin', 'danger')" style="border: 2px solid var(--primary); font-weight: 800;">🏗️ FX Stress Tester</button>
@@ -1275,6 +1277,44 @@
         </div>
         <div id="ai-cashflow-view">
              <!-- Dynamically injected by renderAIProjectionDashboard() -->
+        </div>
+    </div>
+
+    <!-- ================================================== -->
+    <!-- LC MANAGER — embedded from lc-manager module       -->
+    <!-- ================================================== -->
+    <div id="fin-lc-tab" class="finance-container hidden">
+        <div class="card" style="border-top: 4px solid var(--primary); margin-bottom: 20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:15px;">
+            <div>
+                <h3 style="margin:0; font-size:1.4rem;">🏦 Letter of Credit Manager</h3>
+                <p style="color:var(--text-muted); margin:5px 0 0 0; font-size:0.9rem;">Track all LCs — expiry alerts, amendment logs, and settlement status.</p>
+            </div>
+            <button class="primary" onclick="showTab('lc-manager')" style="padding:10px 24px; border-radius:10px;">Open Full LC Manager →</button>
+        </div>
+        <div id="fin-lc-embed-preview" style="padding:20px; text-align:center; background:var(--surface); border:1px dashed var(--border); border-radius:12px; color:var(--text-muted);">
+            <div style="font-size:3rem; margin-bottom:15px;">🏦</div>
+            <h4 style="margin:0 0 10px 0;">LC Manager has moved into Finance</h4>
+            <p style="margin:0 0 20px 0;">Click the button above to open the full LC Manager workspace, or use the sidebar shortcut which will now bring you directly here.</p>
+            <div id="fin-lc-summary" style="display:inline-flex; gap:20px; flex-wrap:wrap; justify-content:center;"></div>
+        </div>
+    </div>
+
+    <!-- ================================================== -->
+    <!-- GOVT INCENTIVES — embedded from incentives module  -->
+    <!-- ================================================== -->
+    <div id="fin-incentives-tab" class="finance-container hidden">
+        <div class="card" style="border-top: 4px solid var(--success); margin-bottom: 20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:15px;">
+            <div>
+                <h3 style="margin:0; font-size:1.4rem;">💸 Govt Export Incentives</h3>
+                <p style="color:var(--text-muted); margin:5px 0 0 0; font-size:0.9rem;">Track RODTEP, MEIS, duty drawback claims — pending and realized.</p>
+            </div>
+            <button class="primary" onclick="if(typeof renderIncentives==='function') renderIncentives(); showTab('incentives-standalone')" style="padding:10px 24px; border-radius:10px; background:var(--success);">Open Full Incentives Register →</button>
+        </div>
+        <div id="fin-incentives-embed-preview" style="padding:20px; text-align:center; background:var(--surface); border:1px dashed var(--border); border-radius:12px; color:var(--text-muted);">
+            <div style="font-size:3rem; margin-bottom:15px;">💸</div>
+            <h4 style="margin:0 0 10px 0;">Govt Incentives has moved into Finance</h4>
+            <p style="margin:0 0 20px 0;">All RODTEP, drawback, and MEIS tracking is consolidated here. Click "Open Full Incentives Register" to access the full entry form and table.</p>
+            <div id="fin-incentives-summary" style="display:inline-flex; gap:20px; flex-wrap:wrap; justify-content:center;"></div>
         </div>
     </div>
 </div>

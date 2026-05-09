@@ -39,7 +39,7 @@
         
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
           <div>
-            <h1 style="margin:0; font-size:1.8rem;">🌐 Network Directory</h1>
+            <h1 style="margin:0; font-size:1.8rem;">🤝 Buyers &amp; Contacts</h1>
             <p style="color:var(--text-muted); margin:5px 0 0 0; font-size:0.95rem;">Manage and track global business contacts across the supply chain.</p>
           </div>
           <button onclick="window.crmNewContact()" style="padding: 12px 24px;">➕ Add New Contact</button>

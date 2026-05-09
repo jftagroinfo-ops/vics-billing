@@ -43,9 +43,12 @@
     <!-- TAB 1: SHIPMENT LEDGER -->
     <div id="imp-ledger-tab" class="import-container">
         <div class="card" style="margin-bottom: 25px; border-top: 4px solid var(--primary);">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                <h3 style="margin:0;">🚢 Import Entry & Vessel Tracking</h3>
-                <button onclick="window.resetImportForm()" class="secondary" style="font-size:0.75rem;">+ New Shipment</button>
+            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                <div>
+                    <h3 style="margin:0;">🚢 Import Entry &amp; Vessel Tracking</h3>
+                    <p style="margin:4px 0 0 0; font-size:0.8rem; color:var(--text-muted);">Import purchases — incoming shipments, landed cost, customs duty, and supplier payments.</p>
+                </div>
+                <button onclick="window.resetImportForm()" class="secondary" style="font-size:0.75rem; flex-shrink:0; margin-left:15px;">+ New Shipment</button>
             </div>
             <form id="imp-master-form" onsubmit="window.saveImportDetailed(event)" style="margin-top:20px;">
                 <div class="grid-4">

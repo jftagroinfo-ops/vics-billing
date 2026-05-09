@@ -21,7 +21,7 @@ function populateIncentiveDropdown() {
     
     sortedDocs.forEach(d => {
         // SECURED: Escaped document ID to prevent attribute injection
-        options += `<option value="${escapeHTML(d.id)}">${escapeHTML(d.no)} | ${escapeHTML(d.buyer.split('\n')[0])}</option>`;
+        options += `<option value="${escapeHTML(d.id)}">${escapeHTML(d.no)} | ${escapeHTML((d.buyer || 'No Buyer').split('\n')[0])}</option>`;
     });
 
     const currentVal = select.value;

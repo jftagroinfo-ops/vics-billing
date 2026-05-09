@@ -10,10 +10,7 @@ function initExporterSystem() {
 }
 initExporterSystem();
 
-window.escapeHTML = window.escapeHTML || function(str) {
-    if (!str) return '';
-    return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
-};
+// escapeHTML is defined globally in ui.js — no local copy needed.
 
 // State
 window.exporterCurrentPage = 1;
@@ -22,13 +19,15 @@ let _lastExporterCount = -1;
 function startExporterWatchdog() {
     setInterval(() => {
         if (typeof db === 'undefined') return;
+        // PERF: Skip re-render when this tab is not visible
+        if (document.getElementById('exporter-data')?.style.display === 'none') return;
         if (!db.exporter_data) db.exporter_data = [];
         
         if (db.exporter_data.length !== _lastExporterCount) {
             _lastExporterCount = db.exporter_data.length;
             renderExporterData();
         }
-    }, 1500);
+    }, 5000); // Slowed from 1500ms → 5000ms. Re-renders on demand via saveData() triggers.
 }
 
 window.resetExporterFilters = function() {

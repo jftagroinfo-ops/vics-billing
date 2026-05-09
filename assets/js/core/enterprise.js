@@ -463,8 +463,22 @@ function processSuccessfulLogin(username, role, canDelete, allowedModules = []) 
     enforceRoleUI(role);
     resetIdleTimer();
     
+    // Show "Scanning alerts..." state on the notification bell while DB hydrates
+    const bellBadge = document.getElementById('notification-badge');
+    const bellList = document.getElementById('notification-list');
+    if (bellBadge) { bellBadge.style.display = 'flex'; bellBadge.innerText = '…'; bellBadge.style.background = 'var(--warning)'; }
+    if (bellList) bellList.innerHTML = `<div style="padding:30px 20px; text-align:center; color:var(--text-muted); font-size:0.9rem;">
+        <div style="font-size:1.8rem; margin-bottom:10px; animation:spin 1.5s linear infinite; display:inline-block;">🔍</div>
+        <div style="font-weight:bold; color:var(--text);">Scanning for alerts…</div>
+        <div style="font-size:0.75rem; margin-top:5px;">Checking overdue invoices, LC expiry, and compliance</div>
+    </div>`;
+
     // Run smart business alerts after DB has had time to hydrate (5s delay)
-    setTimeout(() => { if (typeof window.runSmartBusinessAlerts === 'function') window.runSmartBusinessAlerts(); }, 5000);
+    setTimeout(() => {
+        if (bellBadge) { bellBadge.style.background = ''; }
+        if (typeof window.runSmartBusinessAlerts === 'function') window.runSmartBusinessAlerts();
+        if (typeof renderSystemNotifications === 'function') renderSystemNotifications();
+    }, 5000);
 }
 
 function enforceRoleUI(role) {
@@ -542,13 +556,19 @@ window.addEventListener('click', throttledActivity);
 window.addEventListener('scroll', throttledActivity);
 
 window.performLogout = function() {
-    // SECURITY UPGRADE: Force a final backup before session termination
+    // FIX: If no user is logged in, just close the app (X button on login screen)
+    if (!sessionStorage.getItem('jft_user')) {
+        if (typeof ipcRenderer !== 'undefined' && ipcRenderer) {
+            ipcRenderer.send('confirm-exit');
+        }
+        return;
+    }
+
+    // SECURITY: Force a final backup before session termination
     if (typeof ipcRenderer !== 'undefined' && ipcRenderer) {
         if (typeof window.saveData === 'function') {
             console.log("[LOGOUT] Forcing final master backup...");
             window.saveData(true); 
-        } else if (typeof triggerManualMasterBackup === 'function') {
-            triggerManualMasterBackup();
         }
     } else {
         if (!confirm("Are you sure you want to log out of SMA ERP?")) return;
@@ -655,7 +675,7 @@ window.runSmartBusinessAlerts = function() {
         return daysLeft >= 0 && daysLeft <= 30;
     });
     if (expiringLCs.length > 0) {
-        alerts.push({ type: 'danger', msg: `🏦 ${expiringLCs.length} LC(s) expiring within 30 days! Go to LC Manager immediately.` });
+        alerts.push({ type: 'danger', msg: `🏦 ${expiringLCs.length} LC(s) expiring within 30 days! Go to Finance → LC Manager immediately.` });
     }
     
     // 3. Compliance Document Expiry

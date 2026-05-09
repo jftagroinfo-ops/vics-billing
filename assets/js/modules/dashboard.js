@@ -60,7 +60,18 @@ window.renderDashboard = function() {
 function renderOperationalDashboard() {
     if (!db.docs) return;
     const currentYear = new Date().getFullYear();
-    const liveRate = (typeof getUsdInrRate === 'function') ? getUsdInrRate() : (db.meta?.usdInrRate || 83.50);
+    const liveRate = (typeof getUsdInrRate === 'function') ? getUsdInrRate() : (db.meta?.usdInrRate || 84.50);
+
+    // Show/hide "Estimated Rate" warning badge on the dashboard forex panel
+    const offlineBadge = document.getElementById('dash-offline-rate-badge');
+    if (offlineBadge) {
+        if (window._usingFallbackRate) {
+            offlineBadge.style.display = 'flex';
+            offlineBadge.title = `Using estimated fallback rate of ₹${liveRate}. Live fetch unavailable or no rate saved in Settings → Meta.`;
+        } else {
+            offlineBadge.style.display = 'none';
+        }
+    }
 
     // --- KPI ACCUMULATORS (HIGH-FIDELITY BUSINESS LOGIC) ---
     let exportProfitYTD = 0;

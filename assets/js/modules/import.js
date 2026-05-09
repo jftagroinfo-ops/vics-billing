@@ -3,10 +3,8 @@
 (function() {
     // Shared state/db access
     const safeStr = (s) => (s ? String(s).trim() : '');
-    const escapeHTML = (str) => {
-        if (!str) return '';
-        return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
-    };
+    // escapeHTML is defined globally in ui.js — reference it from window to avoid redefinition
+    const escapeHTML = (str) => (typeof window.escapeHTML === 'function' ? window.escapeHTML(str) : String(str || ''));
 
     // --- TAB SYSTEM ---
     window.switchImportTab = function(tabName) {
