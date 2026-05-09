@@ -584,4 +584,25 @@ if (ipcRenderer) {
     });
 }
 
+
+// ─────────────────────────────────────────────────────────────
+// AUTO-BACKUP LISTENER
+// Electron main sends 'request-auto-backup' every 60 minutes.
+// We respond with the current db + configured backup path.
+// ─────────────────────────────────────────────────────────────
+if (ipcRenderer) {
+    ipcRenderer.on('request-auto-backup', () => {
+        const backupPath = window.db?.meta?.masterBackupPath;
+        if (!backupPath) return; // No path configured — skip silently
+        if (!window.db)  return;
+        ipcRenderer.send('auto-backup-data', backupPath, window.db);
+    });
+
+    ipcRenderer.on('auto-backup-complete', (event, result) => {
+        const timeEl = document.getElementById('last-backup-time');
+        if (timeEl) timeEl.innerText = `Drive Backup: ${result.day} @ ${result.timestamp}`;
+        console.log(`[AUTO-BACKUP] ✅ ${result.day} folder updated.`);
+    });
+}
+
 initRealtimeSync();
